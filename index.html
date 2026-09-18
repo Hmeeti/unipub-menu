@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="UNIPUB — электронное меню караоке-бара и ресторана в Таразе">
+  <meta name="theme-color" content="#0d0d0d">
+  <title>UNIPUB — Меню</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --bg-elev: #141414;
+      --card: #161616;
+      --card-hover: #1b1b1b;
+      --line: rgba(212, 175, 106, 0.18);
+      --gold: #d4af6a;
+      --gold-soft: rgba(212, 175, 106, 0.55);
+      --pink: #ff2d92;
+      --pink-soft: rgba(255, 45, 146, 0.35);
+      --text: #f5f1ea;
+      --muted: #9a948a;
+      --radius: 18px;
+      --dock-h: 72px;
+      --header-pad: 1.25rem;
+      --font: "Manrope", system-ui, sans-serif;
+      --serif: "Cormorant Garamond", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      color: var(--text);
+      background: var(--bg);
+      padding-bottom: calc(var(--dock-h) + 1.5rem);
+      overflow-x: hidden;
+    }
+
+    button, input {
+      font: inherit;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+
+    img { display: block; max-width: 100%; }
+
+    /* Фон: мягкое свечение как у lounge-сайтов */
+    .aurora {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .aurora__blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.28;
+    }
+
+    .aurora__blob--1 {
+      width: 42vw;
+      height: 42vw;
+      top: -12%;
+      left: -8%;
+      background: radial-gradient(circle, rgba(212, 175, 106, 0.35), transparent 70%);
+    }
+
+    .aurora__blob--2 {
+      width: 36vw;
+      height: 36vw;
+      top: 20%;
+      right: -10%;
+      background: radial-gradient(circle, rgba(255, 45, 146, 0.22), transparent 70%);
+    }
+
+    .aurora__blob--3 {
+      width: 50vw;
+      height: 50vw;
+      bottom: -18%;
+      left: 30%;
+      background: radial-gradient(circle, rgba(212, 175, 106, 0.12), transparent 70%);
+    }
+
+    .scroll-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 2px;
+      width: 0;
+      z-index: 60;
+      background: linear-gradient(90deg, var(--gold), var(--pink));
+      box-shadow: 0 0 12px var(--pink-soft);
+    }
+
+    /* Splash */
+    .splash {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      background: var(--bg);
+      transition: opacity 0.55s ease, visibility 0.55s ease;
+    }
+
+    .splash.is-hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .splash__inner {
+      text-align: center;
+      animation: splashIn 0.9s ease both;
+    }
+
+    .splash__mark {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 1rem;
+      border: 1px solid var(--gold-soft);
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      color: var(--gold);
+      box-shadow: 0 0 30px rgba(212, 175, 106, 0.2);
+    }
+
+    .splash__logo {
+      margin: 0;
+      font-size: clamp(2.4rem, 10vw, 3.6rem);
+      font-weight: 800;
+      letter-spacing: 0.22em;
+      color: var(--gold);
+    }
+
+    .splash__line {
+      width: 64px;
+      height: 1px;
+      margin: 1rem auto;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    }
+
+    .splash__tag {
+      margin: 0;
+      font-family: var(--serif);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    @keyframes splashIn {
+      from { opacity: 0; transform: translateY(12px) scale(0.98); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 1;
+      width: min(1120px, calc(100% - 1.5rem));
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      padding: 1.5rem 0 0.75rem;
+      text-align: center;
+    }
+
+    .greeting {
+      margin: 0 0 0.85rem;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .greeting strong {
+      color: var(--gold);
+      font-weight: 600;
+    }
+
+    .logo {
+      margin: 0;
+      font-size: clamp(2.2rem, 8vw, 3.4rem);
+      font-weight: 800;
+      letter-spacing: 0.2em;
+      color: var(--gold);
+      text-shadow: 0 0 28px rgba(212, 175, 106, 0.22);
+    }
+
+    .logo-sub {
+      margin: 0.35rem 0 0;
+      font-family: var(--serif);
+      font-size: clamp(0.95rem, 2.8vw, 1.15rem);
+      letter-spacing: 0.1em;
+      color: var(--muted);
+    }
+
+    .welcome {
+      margin: 1.1rem auto 0;
+      max-width: 34rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(20, 20, 20, 0.75);
+      color: var(--muted);
+      font-size: 0.86rem;
+      backdrop-filter: blur(10px);
+    }
+
+    .welcome .dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      margin-right: 0.45rem;
+      border-radius: 50%;
+      background: var(--pink);
+      box-shadow: 0 0 10px var(--pink);
+      vertical-align: middle;
+    }
+
+    /* Search */
+    .search-wrap {
+      margin: 1.15rem auto 0;
+      max-width: 420px;
+    }
+
+    .search-field {
+      position: relative;
+    }
+
+    .search-field input {
+      width: 100%;
+      padding: 0.85rem 2.6rem 0.85rem 1.05rem;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--bg-elev);
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .search-field input::placeholder { color: #6f6a62; }
+
+    .search-field input:focus {
+      border-color: rgba(255, 45, 146, 0.55);
+      box-shadow: 0 0 0 3px rgba(255, 45, 146, 0.12), 0 0 20px rgba(212, 175, 106, 0.08);
+    }
+
+    .search-clear {
+      position: absolute;
+      right: 0.55rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      color: var(--muted);
+      display: none;
+    }
+
+    .search-clear.is-on { display: grid; place-items: center; }
+    .search-clear:hover { color: var(--pink); }
+
+    /* Categories */
+    .tabs-outer {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      margin: 1.1rem 0 0.35rem;
+      padding: 0.55rem 0;
+      background: linear-gradient(180deg, rgba(13, 13, 13, 0.96), rgba(13, 13, 13, 0.88));
+      backdrop-filter: blur(12px);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding: 0.15rem 0.1rem 0.45rem;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .tabs::-webkit-scrollbar { height: 0; }
+
+    .tab {
+      flex: 0 0 auto;
+      scroll-snap-align: start;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.58rem 0.95rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      background: rgba(22, 22, 22, 0.9);
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: color 0.2s ease, border-color 0.2s ease, background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .tab:hover {
+      color: var(--text);
+      border-color: var(--gold-soft);
+      transform: translateY(-1px);
+    }
+
+    .tab.is-active {
+      color: var(--text);
+      border-color: rgba(255, 45, 146, 0.55);
+      background: linear-gradient(180deg, #1c1c1c, #151515);
+      box-shadow: 0 0 18px rgba(255, 45, 146, 0.12);
+    }
+
+    .tab .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: transparent;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .tab.is-active .dot {
+      background: var(--pink);
+      box-shadow: 0 0 10px var(--pink);
+    }
+
+    /* Catalog */
+    main {
+      padding: 0.75rem 0 1.5rem;
+    }
+
+    .section-block {
+      margin-bottom: 1.75rem;
+      scroll-margin-top: 5.5rem;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin: 0 0 0.9rem;
+    }
+
+    .section-head h2 {
+      margin: 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+
+    .section-head .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--pink);
+      box-shadow: 0 0 12px var(--pink);
+    }
+
+    .section-head::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, var(--line), transparent);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.9rem;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--card);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+      transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease, background 0.22s ease;
+      animation: cardIn 0.45s ease both;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      background: var(--card-hover);
+      border-color: rgba(212, 175, 106, 0.28);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.38), 0 0 24px rgba(255, 45, 146, 0.06);
+    }
+
+    .card.is-hidden { display: none; }
+
+    .card__media {
+      position: relative;
+      aspect-ratio: 16 / 11;
+      background:
+        linear-gradient(160deg, rgba(212, 175, 106, 0.16), transparent 50%),
+        linear-gradient(20deg, rgba(255, 45, 146, 0.12), transparent 45%),
+        linear-gradient(180deg, #1a1a1a, #101010);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+    }
+
+    .card__media svg {
+      width: 52px;
+      height: 52px;
+      color: var(--gold);
+      opacity: 0.85;
+      filter: drop-shadow(0 0 10px rgba(212, 175, 106, 0.35));
+    }
+
+    .card__badge {
+      position: absolute;
+      top: 0.7rem;
+      left: 0.7rem;
+      padding: 0.28rem 0.55rem;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--gold);
+      background: rgba(13, 13, 13, 0.72);
+      border: 1px solid var(--line);
+      backdrop-filter: blur(8px);
+    }
+
+    .card__body {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      padding: 0.95rem 1rem 1.05rem;
+      flex: 1;
+    }
+
+    .card__title {
+      margin: 0;
+      font-size: 1.02rem;
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+
+    .card__desc {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.88rem;
+      line-height: 1.45;
+      flex: 1;
+    }
+
+    .card__foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-top: 0.45rem;
+    }
+
+    .card__price {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--gold);
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .card__btn {
+      padding: 0.48rem 0.8rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 45, 146, 0.4);
+      color: var(--text);
+      font-size: 0.78rem;
+      font-weight: 700;
+      background: rgba(255, 45, 146, 0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+
+    .card__btn:hover,
+    .card__btn:focus-visible {
+      transform: scale(1.04);
+      background: rgba(255, 45, 146, 0.16);
+      box-shadow: 0 0 16px rgba(255, 45, 146, 0.25);
+      outline: none;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .empty {
+      display: none;
+      margin: 2rem 0;
+      padding: 1.5rem;
+      text-align: center;
+      color: var(--muted);
+      border: 1px dashed rgba(212, 175, 106, 0.25);
+      border-radius: var(--radius);
+    }
+
+    .empty.is-on { display: block; }
+
+    /* Rules panel */
+    .rules {
+      display: none;
+      margin: 1rem 0 2rem;
+      padding: 1.25rem;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: rgba(20, 20, 20, 0.9);
+    }
+
+    .rules.is-on { display: block; }
+
+    .rules h2 {
+      margin: 0 0 0.85rem;
+      color: var(--gold);
+      font-size: 1.1rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .rules ul {
+      margin: 0;
+      padding-left: 1.1rem;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .rules li + li { margin-top: 0.35rem; }
+
+    footer.site-footer {
+      text-align: center;
+      padding: 1.25rem 0 0.5rem;
+      color: #6a655d;
+      font-size: 0.78rem;
+    }
+
+    footer.site-footer a {
+      color: var(--gold);
+      text-decoration: none;
+    }
+
+    /* Bottom dock */
+    .dock {
+      position: fixed;
+      left: 50%;
+      bottom: 0.85rem;
+      transform: translateX(-50%);
+      z-index: 40;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0.25rem;
+      width: min(420px, calc(100% - 1.25rem));
+      padding: 0.45rem;
+      border-radius: 22px;
+      border: 1px solid rgba(212, 175, 106, 0.2);
+      background: rgba(16, 16, 16, 0.92);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45), 0 0 24px rgba(255, 45, 146, 0.06);
+    }
+
+    .dock__btn {
+      display: grid;
+      justify-items: center;
+      gap: 0.2rem;
+      padding: 0.45rem 0.25rem;
+      border-radius: 16px;
+      color: var(--muted);
+      font-size: 0.68rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: color 0.2s ease, background 0.2s ease;
+    }
+
+    .dock__btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .dock__btn:hover,
+    .dock__btn.is-active {
+      color: var(--text);
+      background: rgba(255, 45, 146, 0.08);
+    }
+
+    .dock__btn.is-active {
+      color: var(--pink);
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(var(--dock-h) + 1rem);
+      transform: translateX(-50%) translateY(20px);
+      z-index: 50;
+      padding: 0.7rem 1rem;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 45, 146, 0.35);
+      background: rgba(16, 16, 16, 0.95);
+      color: var(--text);
+      font-size: 0.85rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      box-shadow: 0 0 20px rgba(255, 45, 146, 0.15);
+    }
+
+    .toast.is-on {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    @media (min-width: 640px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    @media (min-width: 980px) {
+      .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .wrap { width: min(1120px, calc(100% - 2rem)); }
+    }
+  </style>
+</head>
+<body>
+  <div class="aurora" aria-hidden="true">
+    <div class="aurora__blob aurora__blob--1"></div>
+    <div class="aurora__blob aurora__blob--2"></div>
+    <div class="aurora__blob aurora__blob--3"></div>
+  </div>
+
+  <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
+
+  <div class="splash" id="splash">
+    <div class="splash__inner">
+      <div class="splash__mark" aria-hidden="true">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+          <rect x="9" y="3" width="6" height="11" rx="3" stroke="currentColor" stroke-width="1.6"/>
+          <path d="M7 11a5 5 0 0 0 10 0M12 16v3M9 20h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <h1 class="splash__logo">UNIPUB</h1>
+      <div class="splash__line"></div>
+      <p class="splash__tag">Karaoke Bar &amp; Restaurant</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <header id="top">
+      <p class="greeting" id="greeting">Добро пожаловать</p>
+      <h1 class="logo">UNIPUB</h1>
+      <p class="logo-sub">Karaoke Bar &amp; Restaurant · Taraz</p>
+      <p class="welcome"><span class="dot" aria-hidden="true"></span>Спросите официанта о спецпредложениях вечера и VIP-залах</p>
+
+      <div class="search-wrap">
+        <div class="search-field">
+          <label class="visually-hidden" for="search" style="position:absolute;left:-9999px;">Поиск</label>
+          <input id="search" type="search" placeholder="Поиск блюда..." autocomplete="off" maxlength="80">
+          <button class="search-clear" id="searchClear" type="button" aria-label="Очистить поиск">&times;</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="tabs-outer" id="categories">
+      <div class="tabs" id="tabs" role="tablist" aria-label="Категории меню"></div>
+    </div>
+
+    <main>
+      <div id="menuRoot"></div>
+      <div class="empty" id="emptyState">Ничего не найдено. Попробуйте другой запрос.</div>
+
+      <section class="rules" id="rules" aria-labelledby="rulesTitle">
+        <h2 id="rulesTitle">Правила заведения</h2>
+        <ul>
+          <li>Бронирование VIP и караоке-залов — через администратора или по телефону.</li>
+          <li>Гости младше 21 года допускаются только в сопровождении взрослых до 22:00.</li>
+          <li>Просим соблюдать очередь на сцене и уважать других гостей.</li>
+          <li>Алкоголь подаётся гостям 21+ при предъявлении документа.</li>
+          <li>В залах действует дресс-код smart casual / evening.</li>
+          <li>Курение — только в специально отведённых зонах.</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>© 2026 UNIPUB · Taraz</p>
+      <p><a href="tel:+77777777777">+7 (777) 777-77-77</a> · ежедневно 12:00–02:00</p>
+    </footer>
+  </div>
+
+  <nav class="dock" id="dock" aria-label="Быстрая навигация">
+    <button type="button" class="dock__btn is-active" data-action="home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9.5z"/></svg>
+      <span>Меню</span>
+    </button>
+    <button type="button" class="dock__btn" data-action="categories">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      <span>Разделы</span>
+    </button>
+    <button type="button" class="dock__btn" data-action="rules">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 4h10v16H7z"/><path d="M10 8h4M10 12h4M10 16h2" stroke-linecap="round"/></svg>
+      <span>Правила</span>
+    </button>
+    <button type="button" class="dock__btn" data-action="top">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 19V5M6 11l6-6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Наверх</span>
+    </button>
+  </nav>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    /**
+     * UNIPUB — электронное меню.
+     * Фильтр категорий + поиск + dock-навигация. Контент хранится в MENU_DATA.
+     */
+    (function initUnipubMenu() {
+      "use strict";
+
+      /** @type {{id:string,title:string,items:{id:string,name:string,desc:string,price:number,icon:string}[]}[]} */
+      var MENU_DATA = [
+        {
+          id: "starters",
+          title: "Закуски",
+          items: [
+            { id: "s1", name: "Тартар из тунца", desc: "авокадо, юзу, кунжутный чипс, микрозелень", price: 4900, icon: "plate" },
+            { id: "s2", name: "Буррата с томатами", desc: "базиликовое масло, выдержанный бальзамик, фокачча", price: 4200, icon: "plate" },
+            { id: "s3", name: "Кальмары в панировке", desc: "паприка, айоли, лимон, морская соль", price: 3800, icon: "plate" },
+            { id: "s4", name: "Сырная тарелка", desc: "камамбер, чеддер, мёд, виноград, орехи", price: 5600, icon: "plate" },
+            { id: "s5", name: "Брускетта с ростбифом", desc: "крем-хрен, рукола, маринованный лук", price: 3600, icon: "plate" },
+            { id: "s6", name: "Эдамаме с трюфельной солью", desc: "тёплые бобы, чеснок, лимонная цедра", price: 2900, icon: "plate" }
+          ]
+        },
+        {
+          id: "mains",
+          title: "Основные блюда",
+          items: [
+            { id: "m1", name: "Утиная грудка", desc: "вишнёвый гастрик, пюре из сельдерея, тимьян", price: 8900, icon: "dish" },
+            { id: "m2", name: "Сибас en papillote", desc: "фенхель, цитрусовое масло, молодой картофель", price: 9400, icon: "dish" },
+            { id: "m3", name: "Тальятелле с трюфелем", desc: "пармезан-крем, чёрный трюфель, шнитт-лук", price: 7200, icon: "dish" },
+            { id: "m4", name: "Филе миньон", desc: "демиглас, спаржа, картофельный гратен", price: 11500, icon: "dish" },
+            { id: "m5", name: "Паста с креветками", desc: "тигровые креветки, чеснок, белое вино, черри", price: 6800, icon: "dish" },
+            { id: "m6", name: "Цыплёнок на углях", desc: "соус сальса, микс салата, лайм", price: 6100, icon: "dish" }
+          ]
+        },
+        {
+          id: "grill",
+          title: "Гриль",
+          items: [
+            { id: "g1", name: "Рибай 300 г", desc: "угольный финиш, масло с костным мозгом", price: 12500, icon: "flame" },
+            { id: "g2", name: "Каре ягнёнка", desc: "розмариновая глазурь, овощи гриль", price: 11200, icon: "flame" },
+            { id: "g3", name: "Стриплойн", desc: "перечный соус, руккола, пармезан", price: 10900, icon: "flame" },
+            { id: "g4", name: "Стейк из сёмги", desc: "лимонный масло-соус, зелёная спаржа", price: 8700, icon: "flame" },
+            { id: "g5", name: "Говяжьи рёбра", desc: "BBQ glaze, кольслау, pickles", price: 9800, icon: "flame" },
+            { id: "g6", name: "Wagyu слайдеры", desc: "бриошь, выдержанный чеддер, хаус-пиклс", price: 6800, icon: "flame" }
+          ]
+        },
+        {
+          id: "cocktails",
+          title: "Коктейли",
+          items: [
+            { id: "c1", name: "Neon Martini", desc: "водка, сухой вермут, цитрусовый mist", price: 4500, icon: "glass" },
+            { id: "c2", name: "Loft Old Fashioned", desc: "бурбон, копчёный демерара, биттеры", price: 4800, icon: "glass" },
+            { id: "c3", name: "Taraz Spritz", desc: "аперитив, просекко, грейпфрут", price: 3900, icon: "glass" },
+            { id: "c4", name: "Pink Karaoke", desc: "джин, розовый грейпфрут, elderflower", price: 4200, icon: "glass" },
+            { id: "c5", name: "Smoke & Velvet", desc: "виски, вишня, дымный розмарин", price: 5100, icon: "glass" },
+            { id: "c6", name: "Citrus Eclipse", desc: "текила, юзу, тоник, соль", price: 4300, icon: "glass" }
+          ]
+        },
+        {
+          id: "karaoke",
+          title: "Караоке Specials",
+          items: [
+            { id: "k1", name: "VIP Room Set · 2 часа", desc: "приватный зал, welcome platter, soft drinks", price: 45000, icon: "mic" },
+            { id: "k2", name: "Stage Night Bundle", desc: "бутылка + закуски на 4, приоритет в очереди", price: 28000, icon: "mic" },
+            { id: "k3", name: "After Hours Board", desc: "сыры, мясные деликатесы, оливки, хлеб", price: 9500, icon: "mic" },
+            { id: "k4", name: "Birthday Spotlight", desc: "торт-заглушка, шампанское, микрофон-приветствие", price: 32000, icon: "mic" },
+            { id: "k5", name: "Friends Table Set", desc: "сет закусок + 4 авторских коктейля", price: 22000, icon: "mic" },
+            { id: "k6", name: "DJ Request Pass", desc: "персональный трек-лист на час + welcome shot", price: 12000, icon: "mic" }
+          ]
+        },
+        {
+          id: "desserts",
+          title: "Десерты",
+          items: [
+            { id: "d1", name: "Шоколадный фондан", desc: "ванильное мороженое, золотая пыль, sea salt", price: 3600, icon: "cake" },
+            { id: "d2", name: "Чизкейк юзу", desc: "шортбред, цитрусовое желе, меренга", price: 3400, icon: "cake" },
+            { id: "d3", name: "Тирамису loft", desc: "эспрессо, маскарпоне, какао nibs", price: 3200, icon: "cake" },
+            { id: "d4", name: "Аффогато", desc: "джелато, double espresso, какао", price: 2800, icon: "cake" },
+            { id: "d5", name: "Панна-котта малина", desc: "ягодный кули, мята, хрустящая крошка", price: 3100, icon: "cake" },
+            { id: "d6", name: "Фисташковый рулет", desc: "меренга, крем, карамелизированные орехи", price: 3700, icon: "cake" }
+          ]
+        }
+      ];
+
+      var ICONS = {
+        plate: '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M10 42c8-14 36-14 44 0" stroke="currentColor" stroke-width="2.4"/><ellipse cx="32" cy="44" rx="20" ry="6" stroke="currentColor" stroke-width="2"/></svg>',
+        dish: '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><circle cx="32" cy="32" r="16" stroke="currentColor" stroke-width="2.4"/><path d="M22 32h20M32 22v20" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+        flame: '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M32 10c8 10 2 16-2 22-3 5-5 8-5 13a7 7 0 0 0 14 0c0-4-2-7-5-11-4-6-7-11-2-24Z" stroke="currentColor" stroke-width="2.4"/></svg>',
+        glass: '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M18 14h28l-10 18v10h8M28 42h8" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/></svg>',
+        mic: '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><rect x="26" y="10" width="12" height="24" rx="6" stroke="currentColor" stroke-width="2.4"/><path d="M20 30a12 12 0 0 0 24 0M32 42v8M24 52h16" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>',
+        cake: '<svg viewBox="0 0 64 64" fill="none" aria-hidden="true"><path d="M16 34c0-10 32-10 32 0v2H16v-2Z" stroke="currentColor" stroke-width="2.4"/><path d="M18 36h28v8a8 8 0 0 1-8 8h-12a8 8 0 0 1-8-8v-8Z" stroke="currentColor" stroke-width="2.4"/><circle cx="32" cy="24" r="3" fill="currentColor"/></svg>'
+      };
+
+      var els = {
+        splash: document.getElementById("splash"),
+        greeting: document.getElementById("greeting"),
+        tabs: document.getElementById("tabs"),
+        menuRoot: document.getElementById("menuRoot"),
+        empty: document.getElementById("emptyState"),
+        search: document.getElementById("search"),
+        searchClear: document.getElementById("searchClear"),
+        rules: document.getElementById("rules"),
+        toast: document.getElementById("toast"),
+        progress: document.getElementById("scrollProgress"),
+        dockButtons: Array.prototype.slice.call(document.querySelectorAll(".dock__btn"))
+      };
+
+      var state = {
+        category: "all",
+        query: "",
+        toastTimer: null
+      };
+
+      function formatPrice(value) {
+        var n = Number(value);
+        if (!Number.isFinite(n)) return "— ₸";
+        return n.toLocaleString("ru-RU") + " ₸";
+      }
+
+      function sanitizeQuery(value) {
+        return String(value || "").replace(/\s+/g, " ").trim().toLowerCase().slice(0, 80);
+      }
+
+      function showToast(message) {
+        els.toast.textContent = String(message || "");
+        els.toast.classList.add("is-on");
+        window.clearTimeout(state.toastTimer);
+        state.toastTimer = window.setTimeout(function () {
+          els.toast.classList.remove("is-on");
+        }, 2200);
+      }
+
+      function setGreeting() {
+        var hour = new Date().getHours();
+        var text = "Добро пожаловать в UNIPUB";
+        if (hour >= 5 && hour < 12) text = "Доброе утро · UNIPUB";
+        else if (hour >= 12 && hour < 18) text = "Добрый день · UNIPUB";
+        else if (hour >= 18 && hour < 24) text = "Добрый вечер · UNIPUB";
+        else text = "Ночной вайб · UNIPUB";
+        els.greeting.innerHTML = text.replace("UNIPUB", "<strong>UNIPUB</strong>");
+      }
+
+      function buildTabs() {
+        var html = ['<button class="tab is-active" type="button" role="tab" aria-selected="true" data-category="all"><span class="dot" aria-hidden="true"></span>Все</button>'];
+        MENU_DATA.forEach(function (section) {
+          html.push(
+            '<button class="tab" type="button" role="tab" aria-selected="false" data-category="' +
+              section.id +
+              '"><span class="dot" aria-hidden="true"></span>' +
+              section.title +
+              "</button>"
+          );
+        });
+        els.tabs.innerHTML = html.join("");
+      }
+
+      function buildMenu() {
+        var html = [];
+        MENU_DATA.forEach(function (section, sectionIndex) {
+          html.push('<section class="section-block" id="section-' + section.id + '" data-section="' + section.id + '">');
+          html.push('<div class="section-head"><span class="dot" aria-hidden="true"></span><h2>' + section.title + "</h2></div>");
+          html.push('<div class="grid">');
+          section.items.forEach(function (item, itemIndex) {
+            var delay = Math.min(sectionIndex * 0.04 + itemIndex * 0.03, 0.35);
+            html.push(
+              '<article class="card" data-category="' +
+                section.id +
+                '" data-name="' +
+                item.name.toLowerCase() +
+                '" data-desc="' +
+                item.desc.toLowerCase() +
+                '" style="animation-delay:' +
+                delay +
+                's">' +
+                '<div class="card__media">' +
+                '<span class="card__badge">' +
+                section.title +
+                "</span>" +
+                (ICONS[item.icon] || ICONS.dish) +
+                "</div>" +
+                '<div class="card__body">' +
+                '<h3 class="card__title">' +
+                item.name +
+                "</h3>" +
+                '<p class="card__desc">' +
+                item.desc +
+                "</p>" +
+                '<div class="card__foot">' +
+                '<span class="card__price">' +
+                formatPrice(item.price) +
+                "</span>" +
+                '<button class="card__btn" type="button" data-dish="' +
+                item.name.replace(/"/g, "") +
+                '">Подробнее</button>' +
+                "</div></div></article>"
+            );
+          });
+          html.push("</div></section>");
+        });
+        els.menuRoot.innerHTML = html.join("");
+      }
+
+      function applyFilters() {
+        var cards = Array.prototype.slice.call(document.querySelectorAll(".card"));
+        var sections = Array.prototype.slice.call(document.querySelectorAll(".section-block"));
+        var visibleTotal = 0;
+
+        cards.forEach(function (card) {
+          var catOk = state.category === "all" || card.getAttribute("data-category") === state.category;
+          var hay = (card.getAttribute("data-name") || "") + " " + (card.getAttribute("data-desc") || "");
+          var queryOk = !state.query || hay.indexOf(state.query) !== -1;
+          var show = catOk && queryOk;
+          card.classList.toggle("is-hidden", !show);
+          if (show) visibleTotal += 1;
+        });
+
+        sections.forEach(function (section) {
+          var visibleInSection = section.querySelectorAll(".card:not(.is-hidden)").length;
+          section.style.display = visibleInSection ? "" : "none";
+        });
+
+        els.empty.classList.toggle("is-on", visibleTotal === 0);
+      }
+
+      function setCategory(category) {
+        state.category = category || "all";
+        Array.prototype.slice.call(els.tabs.querySelectorAll(".tab")).forEach(function (btn) {
+          var active = btn.getAttribute("data-category") === state.category;
+          btn.classList.toggle("is-active", active);
+          btn.setAttribute("aria-selected", active ? "true" : "false");
+        });
+        applyFilters();
+      }
+
+      function setDockActive(action) {
+        els.dockButtons.forEach(function (btn) {
+          btn.classList.toggle("is-active", btn.getAttribute("data-action") === action);
+        });
+      }
+
+      function hideSplash() {
+        if (!els.splash) return;
+        els.splash.classList.add("is-hidden");
+      }
+
+      // Events
+      els.tabs.addEventListener("click", function (event) {
+        var btn = event.target.closest(".tab");
+        if (!btn) return;
+        setCategory(btn.getAttribute("data-category"));
+        els.rules.classList.remove("is-on");
+        setDockActive("home");
+      });
+
+      els.search.addEventListener("input", function () {
+        state.query = sanitizeQuery(els.search.value);
+        els.searchClear.classList.toggle("is-on", Boolean(state.query));
+        applyFilters();
+      });
+
+      els.searchClear.addEventListener("click", function () {
+        els.search.value = "";
+        state.query = "";
+        els.searchClear.classList.remove("is-on");
+        applyFilters();
+        els.search.focus();
+      });
+
+      els.menuRoot.addEventListener("click", function (event) {
+        var btn = event.target.closest(".card__btn");
+        if (!btn) return;
+        var name = btn.getAttribute("data-dish") || "Блюдо";
+        showToast(name + " — уточните у официанта");
+      });
+
+      document.getElementById("dock").addEventListener("click", function (event) {
+        var btn = event.target.closest(".dock__btn");
+        if (!btn) return;
+        var action = btn.getAttribute("data-action");
+
+        if (action === "home") {
+          els.rules.classList.remove("is-on");
+          setCategory("all");
+          setDockActive("home");
+          document.getElementById("top").scrollIntoView({ behavior: "smooth" });
+          return;
+        }
+
+        if (action === "categories") {
+          els.rules.classList.remove("is-on");
+          setDockActive("categories");
+          document.getElementById("categories").scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+
+        if (action === "rules") {
+          els.rules.classList.add("is-on");
+          setDockActive("rules");
+          els.rules.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+
+        if (action === "top") {
+          setDockActive("top");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      });
+
+      window.addEventListener("scroll", function () {
+        var max = document.documentElement.scrollHeight - window.innerHeight;
+        var ratio = max > 0 ? (window.scrollY / max) * 100 : 0;
+        els.progress.style.width = Math.min(100, Math.max(0, ratio)) + "%";
+      }, { passive: true });
+
+      setGreeting();
+      buildTabs();
+      buildMenu();
+      applyFilters();
+      window.setTimeout(hideSplash, 1400);
+    })();
+  </script>
+</body>
+</html>
