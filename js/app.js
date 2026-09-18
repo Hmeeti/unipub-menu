@@ -7,8 +7,7 @@
 
   var STORAGE = {
     recent: "unipub:recent",
-    theme: "unipub:theme",
-    splash: "unipub:splashSeen"
+    theme: "unipub:theme"
   };
 
   var state = {
@@ -92,21 +91,14 @@
     return "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
   }
 
-  function hideSplash(force) {
+  function hideSplash() {
+    if (!els.splash) return;
     els.splash.classList.add("is-hidden");
-    if (force) {
-      try { localStorage.setItem(STORAGE.splash, "1"); } catch (e) {}
-    }
   }
 
-  function maybeAutoSplash() {
-    try {
-      if (localStorage.getItem(STORAGE.splash) === "1") {
-        hideSplash(false);
-        return;
-      }
-    } catch (e) {}
-    window.setTimeout(function () { hideSplash(true); }, 1600);
+  function startSplash() {
+    // Заставка обязательная, без skip; чуть дольше для премиум-ощущения
+    window.setTimeout(hideSplash, 3200);
   }
 
   function renderHeaderContacts() {
@@ -434,7 +426,6 @@
   function refreshUIText() {
     els.search.placeholder = UnipubI18n.t("searchPlaceholder");
     els.searchClear.setAttribute("aria-label", UnipubI18n.t("clearSearch"));
-    els.skipBtn.textContent = UnipubI18n.t("skip");
     $("dockMenuLabel").textContent = UnipubI18n.t("menu");
     $("dockSectionsLabel").textContent = UnipubI18n.t("sections");
     $("dockRulesLabel").textContent = UnipubI18n.t("rules");
@@ -446,8 +437,6 @@
   }
 
   function bindEvents() {
-    els.skipBtn.addEventListener("click", function () { hideSplash(true); });
-
     els.tabs.addEventListener("click", function (e) {
       var btn = e.target.closest(".tab");
       if (!btn) return;
@@ -595,7 +584,6 @@
   function cacheEls() {
     els = {
       splash: $("splash"),
-      skipBtn: $("splashSkip"),
       progress: $("scrollProgress"),
       greeting: $("greeting"),
       logoSub: $("logoSub"),
@@ -640,32 +628,21 @@
     renderRules();
     renderRecent();
     bindEvents();
-    maybeAutoSplash();
+    startSplash();
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js").catch(function () {});
     }
   }
 
-  function failBoot(err) {
-    console.error(err);
-    document.body.innerHTML =
-      '<main style="padding:2rem;font-family:Manrope,sans-serif;background:#0d0d0d;color:#f5f1ea;min-height:100vh">' +
-      "<h1>UNIPUB</h1><p>Не удалось загрузить меню. Откройте сайт через локальный сервер или GitHub Pages (file:// блокирует fetch JSON).</p>" +
-      "<p style=\"color:#9a948a\">" + String(err && err.message ? err.message : err) + "</p></main>";
-  }
-
   cacheEls();
-  // На случай прямого открытия — всё равно покажем splash skip
-  if ($("splashSkip")) {
-    $("splashSkip").addEventListener("click", function () { hideSplash(true); });
-  }
 
-  fetch("./data/menu.json", { cache: "no-store" })
-    .then(function (res) {
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      return res.json();
-    })
-    .then(boot)
-    .catch(failBoot);
+  if (window.UNIPUB_DATA) {
+    boot(window.UNIPUB_DATA);
+  } else {
+    document.body.innerHTML =
+      '<main style="padding:2rem;font-family:Manrope,sans-serif;background:#08080a;color:#f5f1ea;min-height:100vh">' +
+      '<p class="wordmark" style="font-size:2rem">unipub<span style="color:#ff2d92">.</span></p>' +
+      "<p>Не удалось загрузить данные меню.</p></main>";
+  }
 })();

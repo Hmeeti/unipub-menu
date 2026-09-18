@@ -142,8 +142,8 @@ a:hover { color: var(--pink); }
   z-index: 100;
   display: grid;
   place-items: center;
-  background: var(--bg);
-  transition: opacity 0.45s ease, visibility 0.45s ease;
+  background: #000000;
+  transition: opacity 0.7s ease, visibility 0.7s ease;
 }
 
 .splash.is-hidden {
@@ -152,67 +152,47 @@ a:hover { color: var(--pink); }
   pointer-events: none;
 }
 
-.splash__inner { text-align: center; animation: rise 0.8s ease both; }
+.splash__inner { text-align: center; animation: rise 1s ease both; }
 
-.splash__mark {
-  width: 64px; height: 64px; margin: 0 auto 1rem;
-  border: 1px solid var(--gold-soft);
-  border-radius: 50%;
-  display: grid; place-items: center;
-  color: var(--gold);
-  box-shadow: 0 0 30px rgba(212, 175, 106, 0.2);
-}
-
-.splash__logo-img,
-.header-logo {
-  display: block;
-  margin: 0 auto;
-  width: clamp(7.5rem, 28vw, 10.5rem);
-  height: auto;
-  border-radius: 50%;
-  object-fit: cover;
-  box-shadow: 0 0 40px rgba(255, 45, 146, 0.12), 0 0 60px rgba(0, 0, 0, 0.35);
-  background: #000;
-}
-
-.header-logo {
-  width: clamp(5.5rem, 22vw, 8.25rem);
-  margin-top: 0.15rem;
-  margin-bottom: 0.15rem;
-}
-
-.splash__logo {
+/* Текстовый логотип: белый unipub + розовая точка */
+.wordmark {
   margin: 0;
-  font-size: clamp(2.4rem, 10vw, 3.6rem);
-  font-weight: 800;
-  letter-spacing: 0.22em;
-  color: var(--logo);
-}
-
-.brand-logo {
   display: inline-flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: center;
-  gap: 0;
-  color: var(--logo);
-  text-shadow: 0 0 40px rgba(255, 255, 255, 0.08);
+  font-family: var(--font);
+  font-weight: 800;
+  font-size: clamp(2.6rem, 11vw, 4rem);
+  letter-spacing: -0.04em;
+  line-height: 1;
+  text-transform: lowercase;
+  color: #ffffff;
+  text-shadow: none;
 }
 
-.logo-dot {
+.wordmark--header {
+  font-size: clamp(2.1rem, 9vw, 3.2rem);
+  margin: 0.2rem 0 0.15rem;
+}
+
+.wordmark__dot {
   display: inline-block;
-  width: 0.28em;
-  height: 0.28em;
-  margin-left: 0.08em;
-  margin-top: 0.12em;
+  width: 0.22em;
+  height: 0.22em;
+  margin: 0 0 0.08em 0.06em;
   border-radius: 50%;
-  background: var(--pink);
-  box-shadow: 0 0 10px rgba(255, 45, 146, 0.85), 0 0 22px rgba(255, 45, 146, 0.35);
+  background: #ff2d92;
+  box-shadow: 0 0 10px rgba(255, 45, 146, 0.75), 0 0 20px rgba(255, 45, 146, 0.3);
   flex-shrink: 0;
 }
 
+[data-theme="light"] .wordmark--header {
+  color: #111111;
+}
+
 .splash__line {
-  width: 64px; height: 1px; margin: 1rem auto;
-  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  width: 64px; height: 1px; margin: 1.15rem auto;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
 }
 
 .splash__tag {
@@ -220,19 +200,9 @@ a:hover { color: var(--pink); }
   font-family: var(--serif);
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: rgba(245, 241, 234, 0.55);
+  font-size: 0.92rem;
 }
-
-.splash__skip {
-  margin-top: 1.5rem;
-  padding: 0.55rem 1rem;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-
-.splash__skip:hover { color: var(--text); border-color: var(--pink); }
 
 @keyframes rise {
   from { opacity: 0; transform: translateY(12px) scale(0.98); }
@@ -419,15 +389,24 @@ header.site-header {
 
 /* Filters + tabs */
 .sticky-nav {
+  position: -webkit-sticky;
   position: sticky;
   top: 0;
   top: var(--safe-top);
   z-index: 30;
   margin-top: 0.85rem;
   padding: 0.5rem 0 0.3rem;
-  background: linear-gradient(180deg, rgba(8, 8, 10, 0.96), rgba(8, 8, 10, 0.88));
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
+  /* Сплошной фон как у страницы — Safari плохо дружит с полупрозрачным blur */
+  background-color: #08080a;
+  background-image: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="light"] .sticky-nav {
+  background-color: #f4f1ea;
+  box-shadow: 0 8px 20px rgba(40, 30, 20, 0.06);
 }
 
 .filters {
@@ -1074,6 +1053,11 @@ main { padding: 0.6rem 0 1.25rem; }
   .sticky-nav {
     position: -webkit-sticky;
     position: sticky;
+    background-color: #08080a;
+  }
+
+  [data-theme="light"] .sticky-nav {
+    background-color: #f4f1ea;
   }
 
   .search-field input {

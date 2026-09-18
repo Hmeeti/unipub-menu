@@ -31,11 +31,10 @@
   <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
 
   <div class="splash" id="splash">
-      <div class="splash__inner">
-      <img class="splash__logo-img" src="image/logo_unipab.JPG" alt="UNIPUB" width="168" height="168">
+    <div class="splash__inner">
+      <p class="wordmark" aria-label="unipub">unipub<span class="wordmark__dot" aria-hidden="true"></span></p>
       <div class="splash__line"></div>
       <p class="splash__tag">Karaoke Bar &amp; Restaurant</p>
-      <button class="splash__skip" id="splashSkip" type="button">Пропустить</button>
     </div>
   </div>
 
@@ -51,7 +50,7 @@
 
     <header class="site-header" id="top">
       <p class="greeting" id="greeting">Добро пожаловать</p>
-      <img class="header-logo" src="image/logo_unipab.JPG" alt="UNIPUB" width="132" height="132">
+      <h1 class="wordmark wordmark--header" aria-label="unipub">unipub<span class="wordmark__dot" aria-hidden="true"></span></h1>
       <p class="logo-sub" id="logoSub">Karaoke Bar &amp; Restaurant · Taraz</p>
       <p class="welcome" id="welcome"><span class="dot" aria-hidden="true"></span>Загрузка меню…</p>
 
@@ -116,6 +115,7 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <script src="js/menu-data.js"></script>
   <script src="js/search.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/app.js"></script>

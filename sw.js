@@ -1,5 +1,5 @@
 /* Offline shell для меню UNIPUB */
-const CACHE = "unipub-v2";
+const CACHE = "unipub-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,7 +7,7 @@ const ASSETS = [
   "./js/app.js",
   "./js/search.js",
   "./js/i18n.js",
-  "./data/menu.json",
+  "./js/menu-data.js",
   "./assets/favicon.svg",
   "./manifest.webmanifest"
 ];
