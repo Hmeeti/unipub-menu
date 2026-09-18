@@ -317,24 +317,30 @@ header.site-header {
 }
 
 .contacts-strip {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.45rem;
-  margin-top: 0.85rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-top: 0.95rem;
+  width: 100%;
 }
 
 .contact-pill {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.48rem 0.75rem;
+  justify-content: center;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.52rem 0.35rem;
   border-radius: 999px;
   border: 1px solid var(--line);
   background: rgba(18, 18, 20, 0.85);
   color: var(--text);
-  font-size: 0.74rem;
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 650;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   -webkit-user-select: none;
   user-select: none;
@@ -349,6 +355,11 @@ header.site-header {
 
 .contact-pill--wa { border-color: rgba(37, 211, 102, 0.35); }
 .contact-pill--ig { border-color: rgba(255, 45, 146, 0.3); }
+.contact-pill--map { border-color: rgba(212, 175, 106, 0.35); }
+
+@media (min-width: 480px) {
+  .contact-pill { font-size: 0.78rem; padding: 0.52rem 0.7rem; }
+}
 
 /* Search */
 .search-wrap { margin: 1rem auto 0; max-width: 460px; }

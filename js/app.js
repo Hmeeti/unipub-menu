@@ -104,21 +104,20 @@
   function renderHeaderContacts() {
     var v = state.data.venue;
     els.logoSub.textContent = UnipubI18n.localized(v.tagline);
-    els.welcome.innerHTML = '<span class="dot" aria-hidden="true"></span>' + UnipubSearch.escapeHtml(UnipubI18n.t("welcome"));
     els.greeting.innerHTML = greetingText().replace("UNIPUB", "<strong>UNIPUB</strong>");
 
     els.contacts.innerHTML = [
-      '<a class="contact-pill" href="tel:' + v.phone + '">' + UnipubI18n.t("phone") + ": " + v.phoneDisplay + "</a>",
+      '<a class="contact-pill" href="tel:' + v.phone + '">' + UnipubI18n.t("phone") + "</a>",
       '<a class="contact-pill contact-pill--wa" target="_blank" rel="noopener" href="' + whatsappUrl("Здравствуйте! Пишу из меню UNIPUB.") + '">' + UnipubI18n.t("wa") + "</a>",
       '<a class="contact-pill contact-pill--ig" target="_blank" rel="noopener" href="' + v.instagram + '">' + UnipubI18n.t("ig") + "</a>",
-      '<a class="contact-pill" target="_blank" rel="noopener" href="' + v.map2gis + '">' + UnipubI18n.t("openMaps") + "</a>"
+      '<a class="contact-pill contact-pill--map" target="_blank" rel="noopener" href="' + v.map2gis + '">' + UnipubI18n.t("openMaps") + "</a>"
     ].join("");
 
     els.footerGrid.innerHTML = [
       "<div><strong>UNIPUB</strong></div>",
       "<div>" + UnipubSearch.escapeHtml(UnipubI18n.localized(v.address)) + "</div>",
       "<div><a href=\"tel:" + v.phone + "\">" + v.phoneDisplay + "</a> · " + UnipubSearch.escapeHtml(UnipubI18n.localized(v.hours)) + "</div>",
-      "<div>★ " + v.rating + " · " + v.reviews + " · <a class=\"map-link\" target=\"_blank\" rel=\"noopener\" href=\"" + v.map2gis + "\">" + UnipubI18n.t("map") + "</a></div>"
+      "<div>★ " + v.rating + " · " + v.reviews + "</div>"
     ].join("");
   }
 
@@ -587,7 +586,6 @@
       progress: $("scrollProgress"),
       greeting: $("greeting"),
       logoSub: $("logoSub"),
-      welcome: $("welcome"),
       contacts: $("contacts"),
       search: $("search"),
       searchClear: $("searchClear"),
