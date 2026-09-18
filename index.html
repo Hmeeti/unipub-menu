@@ -2,8 +2,10 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0d0d0d">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0c">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="UNIPUB — электронное меню караоке-бара и ресторана в Таразе. ул. Сулейменова 26В.">
   <meta property="og:title" content="UNIPUB — Меню">
   <meta property="og:description" content="Karaoke Bar & Restaurant · Taraz. Закуски, гриль, коктейли, VIP-залы.">
@@ -36,7 +38,7 @@
           <path d="M7 11a5 5 0 0 0 10 0M12 16v3M9 20h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
         </svg>
       </div>
-      <h1 class="splash__logo">UNIPUB</h1>
+      <h1 class="splash__logo brand-logo">UNIPUB<span class="logo-dot" aria-hidden="true"></span></h1>
       <div class="splash__line"></div>
       <p class="splash__tag">Karaoke Bar &amp; Restaurant</p>
       <button class="splash__skip" id="splashSkip" type="button">Пропустить</button>
@@ -55,24 +57,18 @@
 
     <header class="site-header" id="top">
       <p class="greeting" id="greeting">Добро пожаловать</p>
-      <h1 class="logo">UNIPUB</h1>
+      <h1 class="logo brand-logo">UNIPUB<span class="logo-dot" aria-hidden="true"></span></h1>
       <p class="logo-sub" id="logoSub">Karaoke Bar &amp; Restaurant · Taraz</p>
       <p class="welcome" id="welcome"><span class="dot" aria-hidden="true"></span>Загрузка меню…</p>
 
       <div class="contacts-strip" id="contacts"></div>
 
-      <div class="table-bar">
-        <label id="tableLabel" for="tableInput">Стол №</label>
-        <input id="tableInput" type="text" inputmode="numeric" maxlength="4" placeholder="12" autocomplete="off">
-      </div>
-
       <div class="search-wrap">
         <div class="search-field">
           <label class="sr-only" for="search">Поиск</label>
-          <input id="search" type="search" placeholder="Поиск блюда..." autocomplete="off" maxlength="80">
+          <input id="search" type="search" placeholder="Поиск блюда..." autocomplete="off" maxlength="80" enterkeyhint="search">
           <button class="search-clear" id="searchClear" type="button" aria-label="Очистить">&times;</button>
         </div>
-        <div class="suggestions" id="suggestions"></div>
       </div>
     </header>
 

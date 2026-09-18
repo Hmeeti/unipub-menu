@@ -4,8 +4,8 @@
   "description": "Электронное меню UNIPUB — Karaoke Bar & Restaurant, Taraz",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0d0d0d",
-  "theme_color": "#0d0d0d",
+  "theme_color": "#08080a",
+  "background_color": "#08080a",
   "lang": "ru",
   "icons": [
     {

@@ -6,7 +6,6 @@
   "use strict";
 
   var STORAGE = {
-    table: "unipub:table",
     recent: "unipub:recent",
     theme: "unipub:theme",
     splash: "unipub:splashSeen"
@@ -39,21 +38,6 @@
     state.toastTimer = window.setTimeout(function () {
       els.toast.classList.remove("is-on");
     }, 2600);
-  }
-
-  function getTable() {
-    return String(els.tableInput.value || "").replace(/\D/g, "").slice(0, 4);
-  }
-
-  function saveTable() {
-    try { localStorage.setItem(STORAGE.table, getTable()); } catch (e) {}
-  }
-
-  function loadTable() {
-    try {
-      var t = localStorage.getItem(STORAGE.table);
-      if (t) els.tableInput.value = t;
-    } catch (e) {}
   }
 
   function getRecent() {
@@ -302,7 +286,6 @@
 
     els.empty.classList.toggle("is-on", visible === 0);
     renderEmptyHints();
-    updateSuggestions();
   }
 
   function renderEmptyHints() {
@@ -314,16 +297,6 @@
         return '<button type="button" data-suggest="' + UnipubSearch.escapeHtml(q) + '">' + UnipubSearch.escapeHtml(q) + "</button>";
       }).join("") +
       "</div>";
-  }
-
-  function updateSuggestions() {
-    var show = !state.query;
-    els.suggestions.classList.toggle("is-on", show);
-    if (!show) return;
-    var queries = (state.data.popularQueries && state.data.popularQueries[UnipubI18n.getLang()]) || [];
-    els.suggestions.innerHTML = queries.map(function (q) {
-      return '<button type="button" data-suggest="' + UnipubSearch.escapeHtml(q) + '">' + UnipubSearch.escapeHtml(q) + "</button>";
-    }).join("");
   }
 
   function renderRecent() {
@@ -411,17 +384,10 @@
   }
 
   function orderDish(item, waiterOnly) {
-    var table = getTable();
-    if (!table) {
-      showToast(UnipubI18n.t("toastNeedTable"));
-      els.tableInput.focus();
-      return;
-    }
-
     var name = UnipubI18n.localized(item.name);
     var text = waiterOnly
-      ? "UNIPUB: стол " + table + ". Позовите официанта. Смотрю: " + name + "."
-      : "UNIPUB: стол " + table + ". Заказ: " + name + " (" + money(item.price) + ").";
+      ? "UNIPUB: позовите официанта. Смотрю: " + name + "."
+      : "UNIPUB: хочу заказать «" + name + "» (" + money(item.price) + ").";
 
     window.open(whatsappUrl(text), "_blank", "noopener");
     showToast(waiterOnly ? UnipubI18n.t("toastWaiter") : UnipubI18n.t("toastOrder"));
@@ -468,7 +434,6 @@
   function refreshUIText() {
     els.search.placeholder = UnipubI18n.t("searchPlaceholder");
     els.searchClear.setAttribute("aria-label", UnipubI18n.t("clearSearch"));
-    els.tableLabel.textContent = UnipubI18n.t("table");
     els.skipBtn.textContent = UnipubI18n.t("skip");
     $("dockMenuLabel").textContent = UnipubI18n.t("menu");
     $("dockSectionsLabel").textContent = UnipubI18n.t("sections");
@@ -550,8 +515,6 @@
     document.addEventListener("keydown", function (e) {
       if (e.key === "Escape" && els.modal.classList.contains("is-on")) closeModal();
     });
-
-    els.tableInput.addEventListener("input", saveTable);
 
     els.themeBtn.addEventListener("click", function () {
       var cur = document.documentElement.getAttribute("data-theme");
@@ -640,7 +603,6 @@
       contacts: $("contacts"),
       search: $("search"),
       searchClear: $("searchClear"),
-      suggestions: $("suggestions"),
       tabs: $("tabs"),
       filters: $("filters"),
       menuRoot: $("menuRoot"),
@@ -654,8 +616,6 @@
       modal: $("modal"),
       modalMedia: $("modalMedia"),
       modalBody: $("modalBody"),
-      tableInput: $("tableInput"),
-      tableLabel: $("tableLabel"),
       themeBtn: $("themeBtn")
     };
   }
@@ -672,7 +632,6 @@
       setTheme("dark");
     }
 
-    loadTable();
     refreshUIText();
     renderHeaderContacts();
     renderTabs();
