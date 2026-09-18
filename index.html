@@ -114,6 +114,35 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <!-- Компактная корзина: не перекрывает контент, появляется только при наличии позиций -->
+  <div class="basket" id="basket">
+    <button type="button" class="basket__fab" id="basketFab" aria-expanded="false" aria-controls="basketPanel" hidden>
+      <span class="basket__fab-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path d="M6 8h12l-1 11H7L6 8Z" stroke-linejoin="round"/>
+          <path d="M9 8V7a3 3 0 0 1 6 0v1" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span id="basketFabLabel">Корзина</span>
+      <span class="basket__count" id="basketCount">0</span>
+    </button>
+
+    <div class="basket__panel" id="basketPanel" hidden>
+      <div class="basket__head">
+        <strong id="basketTitle">Корзина</strong>
+        <button type="button" class="basket__close" id="basketClose" aria-label="Закрыть">×</button>
+      </div>
+      <div class="basket__list" id="basketList"></div>
+      <div class="basket__foot">
+        <div class="basket__total"><span id="basketTotalLabel">Итого</span> <strong id="basketTotal">0 ₸</strong></div>
+        <div class="basket__actions">
+          <button type="button" class="btn btn--ghost" id="basketClear">Очистить</button>
+          <button type="button" class="btn btn--primary" id="basketSend">Отправить в WhatsApp</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="js/menu-data.js"></script>
   <script src="js/search.js"></script>
   <script src="js/i18n.js"></script>

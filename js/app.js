@@ -7,7 +7,8 @@
 
   var STORAGE = {
     recent: "unipub:recent",
-    theme: "unipub:theme"
+    theme: "unipub:theme",
+    cart: "unipub:cart"
   };
 
   var state = {
@@ -17,7 +18,9 @@
     query: "",
     itemsById: {},
     toastTimer: null,
-    activeDishId: null
+    activeDishId: null,
+    cart: {},
+    basketOpen: false
   };
 
   var els = {};
@@ -363,8 +366,10 @@
     document.body.style.overflow = "hidden";
 
     $("modalClose").addEventListener("click", closeModal);
-    $("btnOrder").addEventListener("click", function () { orderDish(item, false); });
-    $("btnWaiter").addEventListener("click", function () { orderDish(item, true); });
+    $("btnOrder").addEventListener("click", function () { addToCart(item); });
+    $("btnWaiter").addEventListener("click", function () {
+      showToast(UnipubI18n.t("toastWaiter"));
+    });
     $("btnShare").addEventListener("click", function () { shareDish(item); });
   }
 
@@ -374,14 +379,111 @@
     state.activeDishId = null;
   }
 
-  function orderDish(item, waiterOnly) {
-    var name = UnipubI18n.localized(item.name);
-    var text = waiterOnly
-      ? "UNIPUB: позовите официанта. Смотрю: " + name + "."
-      : "UNIPUB: хочу заказать «" + name + "» (" + money(item.price) + ").";
+  function loadCart() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(STORAGE.cart) || "{}");
+      state.cart = raw && typeof raw === "object" ? raw : {};
+    } catch (e) {
+      state.cart = {};
+    }
+  }
 
+  function saveCart() {
+    try { localStorage.setItem(STORAGE.cart, JSON.stringify(state.cart)); } catch (e) {}
+  }
+
+  function cartCount() {
+    return Object.keys(state.cart).reduce(function (sum, id) {
+      return sum + (Number(state.cart[id]) || 0);
+    }, 0);
+  }
+
+  function cartTotal() {
+    return Object.keys(state.cart).reduce(function (sum, id) {
+      var item = state.itemsById[id];
+      var qty = Number(state.cart[id]) || 0;
+      if (!item || qty <= 0) return sum;
+      return sum + item.price * qty;
+    }, 0);
+  }
+
+  function addToCart(item) {
+    if (!item || !item.id) return;
+    state.cart[item.id] = (Number(state.cart[item.id]) || 0) + 1;
+    saveCart();
+    renderBasket();
+    showToast(UnipubI18n.t("toastOrder"));
+  }
+
+  function setCartQty(id, qty) {
+    var next = Math.max(0, Math.min(99, Number(qty) || 0));
+    if (next <= 0) delete state.cart[id];
+    else state.cart[id] = next;
+    saveCart();
+    renderBasket();
+  }
+
+  function clearCart() {
+    state.cart = {};
+    saveCart();
+    state.basketOpen = false;
+    renderBasket();
+  }
+
+  function sendCartWhatsApp() {
+    var lines = [];
+    Object.keys(state.cart).forEach(function (id) {
+      var item = state.itemsById[id];
+      var qty = Number(state.cart[id]) || 0;
+      if (!item || qty <= 0) return;
+      lines.push(qty + "× " + UnipubI18n.localized(item.name) + " — " + money(item.price * qty));
+    });
+    if (!lines.length) {
+      showToast(UnipubI18n.t("basketEmpty"));
+      return;
+    }
+    var text = "UNIPUB — заказ:\n" + lines.join("\n") + "\n\n" + UnipubI18n.t("basketTotal") + ": " + money(cartTotal());
     window.open(whatsappUrl(text), "_blank", "noopener");
-    showToast(waiterOnly ? UnipubI18n.t("toastWaiter") : UnipubI18n.t("toastOrder"));
+  }
+
+  function renderBasket() {
+    if (!els.basketFab) return;
+    var count = cartCount();
+    els.basketFab.hidden = count === 0;
+    els.basketCount.textContent = String(count);
+    els.basketFabLabel.textContent = UnipubI18n.t("basket");
+    els.basketFab.setAttribute("aria-expanded", state.basketOpen && count > 0 ? "true" : "false");
+
+    if (count === 0) {
+      els.basketPanel.hidden = true;
+      state.basketOpen = false;
+      return;
+    }
+
+    els.basketPanel.hidden = !state.basketOpen;
+    els.basketTitle.textContent = UnipubI18n.t("basket");
+    els.basketTotalLabel.textContent = UnipubI18n.t("basketTotal");
+    els.basketClear.textContent = UnipubI18n.t("basketClear");
+    els.basketSend.textContent = UnipubI18n.t("basketSend");
+    els.basketTotal.textContent = money(cartTotal());
+
+    var html = [];
+    Object.keys(state.cart).forEach(function (id) {
+      var item = state.itemsById[id];
+      var qty = Number(state.cart[id]) || 0;
+      if (!item || qty <= 0) return;
+      html.push(
+        '<div class="basket__item" data-cart-id="' + id + '">' +
+        '<p class="basket__name">' + UnipubSearch.escapeHtml(UnipubI18n.localized(item.name)) + "</p>" +
+        '<p class="basket__price">' + money(item.price * qty) + "</p>" +
+        '<div class="basket__qty">' +
+        '<button type="button" data-cart-dec="' + id + '" aria-label="-">−</button>' +
+        "<span>" + qty + "</span>" +
+        '<button type="button" data-cart-inc="' + id + '" aria-label="+">+</button>' +
+        "</div></div>"
+      );
+    });
+    els.basketList.innerHTML = html.join("") || ("<p class=\"modal__text\">" + UnipubSearch.escapeHtml(UnipubI18n.t("basketEmpty")) + "</p>");
   }
 
   function shareDish(item) {
@@ -433,6 +535,7 @@
       btn.classList.toggle("is-active", btn.getAttribute("data-lang") === UnipubI18n.getLang());
     });
     setTheme(document.documentElement.getAttribute("data-theme") || "dark");
+    renderBasket();
   }
 
   function bindEvents() {
@@ -507,6 +610,33 @@
     els.themeBtn.addEventListener("click", function () {
       var cur = document.documentElement.getAttribute("data-theme");
       setTheme(cur === "light" ? "dark" : "light");
+    });
+
+    els.basketFab.addEventListener("click", function () {
+      state.basketOpen = !state.basketOpen;
+      renderBasket();
+    });
+
+    els.basketClose.addEventListener("click", function () {
+      state.basketOpen = false;
+      renderBasket();
+    });
+
+    els.basketClear.addEventListener("click", clearCart);
+    els.basketSend.addEventListener("click", sendCartWhatsApp);
+
+    els.basketList.addEventListener("click", function (e) {
+      var inc = e.target.closest("[data-cart-inc]");
+      var dec = e.target.closest("[data-cart-dec]");
+      if (inc) {
+        var idInc = inc.getAttribute("data-cart-inc");
+        setCartQty(idInc, (Number(state.cart[idInc]) || 0) + 1);
+        return;
+      }
+      if (dec) {
+        var idDec = dec.getAttribute("data-cart-dec");
+        setCartQty(idDec, (Number(state.cart[idDec]) || 0) - 1);
+      }
     });
 
     document.querySelector(".lang-switch").addEventListener("click", function (e) {
@@ -602,7 +732,18 @@
       modal: $("modal"),
       modalMedia: $("modalMedia"),
       modalBody: $("modalBody"),
-      themeBtn: $("themeBtn")
+      themeBtn: $("themeBtn"),
+      basketFab: $("basketFab"),
+      basketFabLabel: $("basketFabLabel"),
+      basketCount: $("basketCount"),
+      basketPanel: $("basketPanel"),
+      basketList: $("basketList"),
+      basketTitle: $("basketTitle"),
+      basketClose: $("basketClose"),
+      basketTotal: $("basketTotal"),
+      basketTotalLabel: $("basketTotalLabel"),
+      basketClear: $("basketClear"),
+      basketSend: $("basketSend")
     };
   }
 
@@ -610,6 +751,7 @@
     state.data = data;
     UnipubI18n.loadSaved();
     cacheEls();
+    loadCart();
 
     try {
       var theme = localStorage.getItem(STORAGE.theme) || "dark";
@@ -625,6 +767,7 @@
     renderMenu();
     renderRules();
     renderRecent();
+    renderBasket();
     bindEvents();
     startSplash();
 
