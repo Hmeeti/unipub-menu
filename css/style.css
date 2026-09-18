@@ -163,6 +163,24 @@ a:hover { color: var(--pink); }
   box-shadow: 0 0 30px rgba(212, 175, 106, 0.2);
 }
 
+.splash__logo-img,
+.header-logo {
+  display: block;
+  margin: 0 auto;
+  width: clamp(7.5rem, 28vw, 10.5rem);
+  height: auto;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 40px rgba(255, 45, 146, 0.12), 0 0 60px rgba(0, 0, 0, 0.35);
+  background: #000;
+}
+
+.header-logo {
+  width: clamp(5.5rem, 22vw, 8.25rem);
+  margin-top: 0.15rem;
+  margin-bottom: 0.15rem;
+}
+
 .splash__logo {
   margin: 0;
   font-size: clamp(2.4rem, 10vw, 3.6rem);
@@ -294,6 +312,8 @@ header.site-header {
   letter-spacing: 0.18em;
   color: var(--logo);
 }
+
+/* текстовый .logo оставлен как fallback; основной бренд — .header-logo */
 
 .logo-sub {
   margin: 0.35rem 0 0;
