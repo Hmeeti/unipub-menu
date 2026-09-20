@@ -1537,9 +1537,13 @@ main { padding: 0.7rem 0 1.4rem; }
   .basket__panel {
     width: 100%;
     max-width: none;
-    max-height: min(78dvh, 680px);
+    max-height: min(84dvh, 720px);
   }
-  .basket__foot { max-height: min(58dvh, 480px); }
+
+  .basket__panel.is-split .basket__list {
+    max-height: 28%;
+    flex-basis: 28%;
+  }
 }
 
 @supports (-webkit-touch-callout: none) {
