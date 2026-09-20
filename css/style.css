@@ -1365,78 +1365,13 @@ main { padding: 0.6rem 0 1.25rem; }
 
 .basket__actions {
   display: grid;
-  grid-template-columns: 1fr 1.2fr;
+  grid-template-columns: 1fr 1.4fr;
   gap: 0.45rem;
-}
-
-.basket__actions #basketClear {
-  grid-column: 1 / -1;
 }
 
 .basket__actions .btn {
   padding: 0.65rem 0.5rem;
   font-size: 0.78rem;
-}
-
-.btn--kaspi {
-  background: linear-gradient(135deg, #f14635, #e31e24);
-  color: #fff;
-  border: none;
-  font-weight: 700;
-}
-
-.btn--kaspi:hover {
-  filter: brightness(1.06);
-}
-
-.basket__pay {
-  margin-top: 0.65rem;
-  padding-top: 0.55rem;
-  border-top: 1px dashed var(--line);
-}
-
-.basket__pay[hidden] { display: none !important; }
-
-.basket__pay-title {
-  margin: 0 0 0.25rem;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.basket__pay-hint {
-  margin: 0 0 0.65rem;
-  font-size: 0.75rem;
-  color: var(--muted);
-  line-height: 1.35;
-}
-
-.basket__pay-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 0.6rem;
-  margin-bottom: 0.4rem;
-  font-size: 0.82rem;
-  color: var(--muted);
-}
-
-.basket__pay-row strong {
-  color: var(--text);
-  font-weight: 700;
-  text-align: right;
-}
-
-.basket__pay-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.4rem;
-  margin-top: 0.65rem;
-}
-
-.basket__pay-actions .btn--kaspi,
-.basket__pay-actions .btn--primary {
-  grid-column: 1 / -1;
 }
 
 .basket__waiters {
