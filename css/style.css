@@ -204,6 +204,16 @@ a:hover { color: var(--pink); }
   font-size: 0.92rem;
 }
 
+.splash__fee {
+  margin: 1rem 0 0;
+  font-size: 0.82rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ff2d92;
+  text-shadow: 0 0 14px rgba(255, 45, 146, 0.35);
+}
+
 @keyframes rise {
   from { opacity: 0; transform: translateY(12px) scale(0.98); }
   to { opacity: 1; transform: none; }
@@ -1184,11 +1194,39 @@ main { padding: 0.6rem 0 1.25rem; }
   border-top: 1px solid var(--line);
 }
 
+.basket__table {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.55rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.basket__table input {
+  width: 4.5rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  text-align: center;
+  font-size: 16px;
+}
+
+.basket__sumline,
 .basket__total {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0.55rem;
-  font-size: 0.9rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.basket__total {
+  margin: 0.45rem 0 0.55rem;
+  font-size: 0.95rem;
+  color: var(--text);
 }
 
 .basket__actions {
@@ -1200,6 +1238,44 @@ main { padding: 0.6rem 0 1.25rem; }
 .basket__actions .btn {
   padding: 0.65rem 0.5rem;
   font-size: 0.78rem;
+}
+
+.basket__waiters {
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px dashed var(--line);
+}
+
+.basket__waiters[hidden] { display: none !important; }
+
+.basket__waiters-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.78rem;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+}
+
+.basket__waiters-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+}
+
+.waiter-btn {
+  padding: 0.55rem 0.45rem;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 45, 146, 0.35);
+  background: rgba(255, 45, 146, 0.08);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.waiter-btn:hover,
+.waiter-btn:focus-visible {
+  border-color: var(--pink);
+  box-shadow: 0 0 14px rgba(255, 45, 146, 0.2);
 }
 
 @media (min-width: 640px) {

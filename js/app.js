@@ -8,8 +8,18 @@
   var STORAGE = {
     recent: "unipub:recent",
     theme: "unipub:theme",
-    cart: "unipub:cart"
+    cart: "unipub:cart",
+    table: "unipub:table"
   };
+
+  var SERVICE_RATE = 0.15;
+
+  var WAITERS = [
+    { id: "eleanora", name: "Элеанора", phone: "77771172605", display: "+7 777 117 2605" },
+    { id: "ekaterina", name: "Екатерина", phone: "77056522248", display: "+7 705 652 2248" },
+    { id: "marina", name: "Марина", phone: "77055705732", display: "+7 705 570 5732" },
+    { id: "anastasia", name: "Анастасия", phone: "77085887959", display: "+7 708 588 7959" }
+  ];
 
   var state = {
     data: null,
@@ -20,7 +30,8 @@
     toastTimer: null,
     activeDishId: null,
     cart: {},
-    basketOpen: false
+    basketOpen: false,
+    waitersOpen: false
   };
 
   var els = {};
@@ -89,8 +100,8 @@
     return "badge badge--" + flag;
   }
 
-  function whatsappUrl(text) {
-    var phone = state.data.venue.whatsapp;
+  function whatsappUrl(text, phoneOverride) {
+    var phone = phoneOverride || state.data.venue.whatsapp;
     return "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
   }
 
@@ -398,13 +409,36 @@
     }, 0);
   }
 
-  function cartTotal() {
+  function cartSubtotal() {
     return Object.keys(state.cart).reduce(function (sum, id) {
       var item = state.itemsById[id];
       var qty = Number(state.cart[id]) || 0;
       if (!item || qty <= 0) return sum;
       return sum + item.price * qty;
     }, 0);
+  }
+
+  function cartService() {
+    return Math.round(cartSubtotal() * SERVICE_RATE);
+  }
+
+  function cartGrandTotal() {
+    return cartSubtotal() + cartService();
+  }
+
+  function getTable() {
+    return String((els.basketTable && els.basketTable.value) || "").replace(/\D/g, "").slice(0, 4);
+  }
+
+  function saveTable() {
+    try { localStorage.setItem(STORAGE.table, getTable()); } catch (e) {}
+  }
+
+  function loadTable() {
+    try {
+      var t = localStorage.getItem(STORAGE.table);
+      if (t && els.basketTable) els.basketTable.value = t;
+    } catch (e) {}
   }
 
   function addToCart(item) {
@@ -425,12 +459,13 @@
 
   function clearCart() {
     state.cart = {};
+    state.waitersOpen = false;
     saveCart();
     state.basketOpen = false;
     renderBasket();
   }
 
-  function sendCartWhatsApp() {
+  function buildOrderText(waiterName) {
     var lines = [];
     Object.keys(state.cart).forEach(function (id) {
       var item = state.itemsById[id];
@@ -438,17 +473,59 @@
       if (!item || qty <= 0) return;
       lines.push(qty + "× " + UnipubI18n.localized(item.name) + " — " + money(item.price * qty));
     });
-    if (!lines.length) {
+
+    var table = getTable() || "—";
+    var sub = cartSubtotal();
+    var service = cartService();
+    var total = cartGrandTotal();
+
+    return [
+      "UNIPUB — заказ",
+      "Стол: " + table,
+      "Официант: " + waiterName,
+      "",
+      lines.join("\n"),
+      "",
+      UnipubI18n.t("basketSub") + ": " + money(sub),
+      UnipubI18n.t("basketService") + ": " + money(service),
+      UnipubI18n.t("basketTotal") + ": " + money(total)
+    ].join("\n");
+  }
+
+  function showWaitersPicker() {
+    if (!cartCount()) {
       showToast(UnipubI18n.t("basketEmpty"));
       return;
     }
-    var text = "UNIPUB — заказ:\n" + lines.join("\n") + "\n\n" + UnipubI18n.t("basketTotal") + ": " + money(cartTotal());
-    window.open(whatsappUrl(text), "_blank", "noopener");
+    if (!getTable()) {
+      showToast(UnipubI18n.t("toastNeedTable"));
+      if (els.basketTable) els.basketTable.focus();
+      return;
+    }
+    state.waitersOpen = true;
+    renderBasket();
+  }
+
+  function sendToWaiter(waiter) {
+    if (!waiter) return;
+    if (!getTable()) {
+      showToast(UnipubI18n.t("toastNeedTable"));
+      return;
+    }
+    var text = buildOrderText(waiter.name);
+    window.open(whatsappUrl(text, waiter.phone), "_blank", "noopener");
+    showToast(UnipubI18n.t("toastSentTo") + " " + waiter.name);
+    state.waitersOpen = false;
+    renderBasket();
   }
 
   function renderBasket() {
     if (!els.basketFab) return;
     var count = cartCount();
+    var sub = cartSubtotal();
+    var service = cartService();
+    var total = cartGrandTotal();
+
     els.basketFab.hidden = count === 0;
     els.basketCount.textContent = String(count);
     els.basketFabLabel.textContent = UnipubI18n.t("basket");
@@ -457,15 +534,31 @@
     if (count === 0) {
       els.basketPanel.hidden = true;
       state.basketOpen = false;
+      state.waitersOpen = false;
       return;
     }
 
     els.basketPanel.hidden = !state.basketOpen;
     els.basketTitle.textContent = UnipubI18n.t("basket");
+    els.basketTableLabel.textContent = UnipubI18n.t("table");
+    els.basketSubLabel.textContent = UnipubI18n.t("basketSub");
+    els.basketServiceLabel.textContent = UnipubI18n.t("basketService");
     els.basketTotalLabel.textContent = UnipubI18n.t("basketTotal");
     els.basketClear.textContent = UnipubI18n.t("basketClear");
-    els.basketSend.textContent = UnipubI18n.t("basketSend");
-    els.basketTotal.textContent = money(cartTotal());
+    els.basketSend.textContent = UnipubI18n.t("basketChooseWaiter");
+    els.basketSubtotal.textContent = money(sub);
+    els.basketService.textContent = money(service);
+    els.basketTotal.textContent = money(total);
+    els.basketWaitersTitle.textContent = UnipubI18n.t("basketWaitersTitle");
+    els.basketWaiters.hidden = !state.waitersOpen;
+
+    els.basketWaitersGrid.innerHTML = WAITERS.map(function (w) {
+      return (
+        '<button type="button" class="waiter-btn" data-waiter="' + w.id + '">' +
+        UnipubSearch.escapeHtml(w.name) +
+        "</button>"
+      );
+    }).join("");
 
     var html = [];
     Object.keys(state.cart).forEach(function (id) {
@@ -527,6 +620,7 @@
   function refreshUIText() {
     els.search.placeholder = UnipubI18n.t("searchPlaceholder");
     els.searchClear.setAttribute("aria-label", UnipubI18n.t("clearSearch"));
+    if (els.splashFee) els.splashFee.textContent = UnipubI18n.t("serviceFeeSplash");
     $("dockMenuLabel").textContent = UnipubI18n.t("menu");
     $("dockSectionsLabel").textContent = UnipubI18n.t("sections");
     $("dockRulesLabel").textContent = UnipubI18n.t("rules");
@@ -614,16 +708,30 @@
 
     els.basketFab.addEventListener("click", function () {
       state.basketOpen = !state.basketOpen;
+      if (!state.basketOpen) state.waitersOpen = false;
       renderBasket();
     });
 
     els.basketClose.addEventListener("click", function () {
       state.basketOpen = false;
+      state.waitersOpen = false;
       renderBasket();
     });
 
     els.basketClear.addEventListener("click", clearCart);
-    els.basketSend.addEventListener("click", sendCartWhatsApp);
+    els.basketSend.addEventListener("click", showWaitersPicker);
+
+    if (els.basketTable) {
+      els.basketTable.addEventListener("input", saveTable);
+    }
+
+    els.basketWaitersGrid.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-waiter]");
+      if (!btn) return;
+      var id = btn.getAttribute("data-waiter");
+      var waiter = WAITERS.filter(function (w) { return w.id === id; })[0];
+      sendToWaiter(waiter);
+    });
 
     els.basketList.addEventListener("click", function (e) {
       var inc = e.target.closest("[data-cart-inc]");
@@ -743,7 +851,17 @@
       basketTotal: $("basketTotal"),
       basketTotalLabel: $("basketTotalLabel"),
       basketClear: $("basketClear"),
-      basketSend: $("basketSend")
+      basketSend: $("basketSend"),
+      basketTable: $("basketTable"),
+      basketTableLabel: $("basketTableLabel"),
+      basketSubLabel: $("basketSubLabel"),
+      basketSubtotal: $("basketSubtotal"),
+      basketServiceLabel: $("basketServiceLabel"),
+      basketService: $("basketService"),
+      basketWaiters: $("basketWaiters"),
+      basketWaitersTitle: $("basketWaitersTitle"),
+      basketWaitersGrid: $("basketWaitersGrid"),
+      splashFee: $("splashFee")
     };
   }
 
@@ -752,6 +870,7 @@
     UnipubI18n.loadSaved();
     cacheEls();
     loadCart();
+    loadTable();
 
     try {
       var theme = localStorage.getItem(STORAGE.theme) || "dark";

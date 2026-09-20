@@ -35,6 +35,7 @@
       <p class="wordmark" aria-label="unipub">unipub<span class="wordmark__dot" aria-hidden="true"></span></p>
       <div class="splash__line"></div>
       <p class="splash__tag">Karaoke Bar &amp; Restaurant</p>
+      <p class="splash__fee" id="splashFee">Обслуживание 15%</p>
     </div>
   </div>
 
@@ -134,10 +135,20 @@
       </div>
       <div class="basket__list" id="basketList"></div>
       <div class="basket__foot">
+        <label class="basket__table">
+          <span id="basketTableLabel">Стол №</span>
+          <input id="basketTable" type="text" inputmode="numeric" maxlength="4" placeholder="12" autocomplete="off">
+        </label>
+        <div class="basket__sumline"><span id="basketSubLabel">Сумма</span> <strong id="basketSubtotal">0 ₸</strong></div>
+        <div class="basket__sumline"><span id="basketServiceLabel">Обслуживание 15%</span> <strong id="basketService">0 ₸</strong></div>
         <div class="basket__total"><span id="basketTotalLabel">Итого</span> <strong id="basketTotal">0 ₸</strong></div>
         <div class="basket__actions">
           <button type="button" class="btn btn--ghost" id="basketClear">Очистить</button>
-          <button type="button" class="btn btn--primary" id="basketSend">Отправить в WhatsApp</button>
+          <button type="button" class="btn btn--primary" id="basketSend">Выбрать официанта</button>
+        </div>
+        <div class="basket__waiters" id="basketWaiters" hidden>
+          <p class="basket__waiters-title" id="basketWaitersTitle">Кто ваш официант?</p>
+          <div class="basket__waiters-grid" id="basketWaitersGrid"></div>
         </div>
       </div>
     </div>
