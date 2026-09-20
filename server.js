@@ -19,7 +19,7 @@ const SESSION_SECRET = String(process.env.SESSION_SECRET || crypto.randomBytes(2
 const MENU_URL = String(process.env.MENU_URL || "https://hmeeti.github.io/unipub-menu/").replace(/\/?$/, "/");
 
 const GH = {
-  token: String(process.env.GITHUB_TOKEN || "").trim(),
+  token: String(process.env.GITHUB_TOKEN || "").trim().replace(/^["']|["']$/g, ""),
   owner: String(process.env.GITHUB_OWNER || "Hmeeti").trim(),
   repo: String(process.env.GITHUB_REPO || "unipub-menu").trim(),
   branch: String(process.env.GITHUB_BRANCH || "main").trim(),
@@ -119,6 +119,23 @@ async function fetchGithubMenu() {
   return { data: ensureShape(parseMenuJs(raw)), sha: meta.sha };
 }
 
+function mapGithubError(message, status, headers) {
+  const msg = String(message || "");
+  const needed = headers && headers.get ? headers.get("x-accepted-github-permissions") : "";
+  if (/Resource not accessible by personal access token/i.test(msg)) {
+    return (
+      "Токену не хватает прав на репо. Сделай Classic PAT с галкой repo " +
+      "и вставь в Render → GITHUB_TOKEN" +
+      (needed ? " (нужно: " + needed + ")" : "")
+    );
+  }
+  if (/Bad credentials/i.test(msg)) return "Неверный GITHUB_TOKEN на Render";
+  if (/Not Found/i.test(msg) && status === 404) {
+    return "Репо не найдено или token без доступа к " + GH.owner + "/" + GH.repo;
+  }
+  return msg || ("GitHub HTTP " + status);
+}
+
 async function pushMenuToGithub(data, message) {
   if (!GH.token) throw new Error("GITHUB_TOKEN не задан на Render");
   if (pushLock) throw new Error("Уже идёт пуш");
@@ -132,7 +149,7 @@ async function pushMenuToGithub(data, message) {
       sha = meta.sha || null;
     } else if (getRes.status !== 404) {
       const body = await getRes.json().catch(() => ({}));
-      throw new Error(body.message || ("GitHub GET " + getRes.status));
+      throw new Error(mapGithubError(body.message, getRes.status, getRes.headers));
     }
 
     const payload = {
@@ -148,7 +165,7 @@ async function pushMenuToGithub(data, message) {
       body: JSON.stringify(payload)
     });
     const body = await putRes.json().catch(() => ({}));
-    if (!putRes.ok) throw new Error(body.message || ("GitHub PUT " + putRes.status));
+    if (!putRes.ok) throw new Error(mapGithubError(body.message, putRes.status, putRes.headers));
     return { ok: true, commit: body.commit && body.commit.sha };
   } finally {
     pushLock = false;
