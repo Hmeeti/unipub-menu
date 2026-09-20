@@ -1,5 +1,5 @@
 /* Offline shell для меню UNIPUB */
-const CACHE = "unipub-v6";
+const CACHE = "unipub-v8";
 const ASSETS = [
   "./",
   "./index.html",
@@ -8,6 +8,8 @@ const ASSETS = [
   "./js/search.js",
   "./js/i18n.js",
   "./js/menu-data.js",
+  "./js/languages.js",
+  "./js/translate.js",
   "./assets/favicon.svg",
   "./manifest.webmanifest"
 ];
@@ -29,6 +31,12 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
+
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) {
+    // Переводчик и внешние API — только сеть, без SW-кэша
+    return;
+  }
 
   event.respondWith(
     caches.match(req).then((cached) => {

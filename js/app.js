@@ -224,7 +224,10 @@
           "</div>" +
           '<div class="card__body">' +
           '<h3 class="card__title" data-field="name"></h3>' +
-          '<p class="card__meta">' + UnipubSearch.escapeHtml((item.weight || "") + (item.cookTime ? " · " + item.cookTime : "")) + "</p>" +
+          '<p class="card__meta">' + UnipubSearch.escapeHtml(
+            (item.weight ? UnipubI18n.localized(item.weight) : "") +
+            (item.cookTime ? (item.weight ? " · " : "") + UnipubI18n.localized(item.cookTime) : "")
+          ) + "</p>" +
           '<p class="card__desc" data-field="desc"></p>' +
           '<div class="card__foot"><span class="card__price">' + money(item.price) + "</span>" +
           '<button class="card__btn" type="button" data-open="' + item.id + '">' + UnipubI18n.t("details") + "</button>" +
@@ -355,8 +358,8 @@
       '<h3 class="modal__title">' + UnipubSearch.escapeHtml(name) + "</h3>" +
       '<p class="modal__price">' + money(item.price) + "</p>" +
       '<div class="modal__stats">' +
-      (item.weight ? '<span class="stat">' + UnipubI18n.t("weight") + ": " + UnipubSearch.escapeHtml(item.weight) + "</span>" : "") +
-      (item.cookTime ? '<span class="stat">' + UnipubI18n.t("cook") + ": " + UnipubSearch.escapeHtml(item.cookTime) + "</span>" : "") +
+      (item.weight ? '<span class="stat">' + UnipubI18n.t("weight") + ": " + UnipubSearch.escapeHtml(UnipubI18n.localized(item.weight)) + "</span>" : "") +
+      (item.cookTime ? '<span class="stat">' + UnipubI18n.t("cook") + ": " + UnipubSearch.escapeHtml(UnipubI18n.localized(item.cookTime)) + "</span>" : "") +
       "</div>" +
       '<p class="modal__text">' + UnipubSearch.escapeHtml(UnipubI18n.localized(item.desc)) + "</p>" +
       '<p class="modal__section-title">' + UnipubI18n.t("ingredients") + "</p>" +
@@ -364,7 +367,7 @@
       '<p class="modal__section-title">' + UnipubI18n.t("allergens") + "</p>" +
       ((item.allergens || []).length
         ? '<div class="allergens">' + item.allergens.map(function (a) {
-            return '<span class="allergen">' + UnipubSearch.escapeHtml(a) + "</span>";
+            return '<span class="allergen">' + UnipubSearch.escapeHtml(UnipubI18n.localized(a)) + "</span>";
           }).join("") + "</div>"
         : '<p class="modal__text">' + UnipubI18n.t("noAllergens") + "</p>") +
       '<div class="modal__actions">' +
@@ -617,17 +620,111 @@
     });
   }
 
+  function refreshAllViews() {
+    refreshUIText();
+    renderHeaderContacts();
+    renderTabs();
+    renderFilters();
+    renderMenu();
+    renderRules();
+    renderRecent();
+    renderBasket();
+  }
+
+  function renderLangList(query) {
+    var current = UnipubI18n.getWorldCode();
+    var list = UnipubLanguages.filter(query);
+    els.langList.innerHTML = list.map(function (lang) {
+      var active = lang.code === current || lang.mapTo === current || (current === "kz" && lang.code === "kk");
+      return (
+        '<button type="button" class="lang-option' + (active ? " is-active" : "") + '" data-world-lang="' + lang.code + '">' +
+        UnipubSearch.escapeHtml(lang.name) +
+        "<small>" + UnipubSearch.escapeHtml(lang.code) + (lang.native ? " · native" : "") + "</small>" +
+        "</button>"
+      );
+    }).join("") || "<p class=\"modal__text\">—</p>";
+  }
+
+  function openLangModal() {
+    els.langModal.hidden = false;
+    els.langModalTitle.textContent = UnipubI18n.t("langTitle");
+    els.langSearch.placeholder = UnipubI18n.t("langSearch");
+    els.langSearch.value = "";
+    renderLangList("");
+    setTimeout(function () { els.langSearch.focus(); }, 50);
+  }
+
+  function closeLangModal() {
+    els.langModal.hidden = true;
+  }
+
+  function setTxOverlay(on, text) {
+    els.txOverlay.hidden = !on;
+    if (text) els.txOverlayText.textContent = text;
+  }
+
+  function applyWorldLanguage(code) {
+    var langMeta = UnipubLanguages.find(code) || { code: code, name: code };
+    closeLangModal();
+
+    if (UnipubTranslate.isNative(code)) {
+      UnipubI18n.setWorldLang(code, null);
+      refreshAllViews();
+      showToast(langMeta.name);
+      return;
+    }
+
+    setTxOverlay(true, UnipubI18n.t("toastTranslating"));
+    UnipubTranslate.prepare(state.data, UnipubI18n.UI.ru, code)
+      .then(function (result) {
+        UnipubI18n.setWorldLang(code, result.map);
+        refreshAllViews();
+        showToast(langMeta.name);
+      })
+      .catch(function () {
+        UnipubI18n.setWorldLang("ru", null);
+        refreshAllViews();
+        showToast(UnipubI18n.t("toastTranslateFail"));
+      })
+      .then(function () {
+        setTxOverlay(false);
+      });
+  }
+
+  function restoreWorldLanguageOnBoot() {
+    var code = UnipubI18n.getWorldCode();
+    if (!code || UnipubTranslate.isNative(code)) {
+      UnipubI18n.setWorldLang(code || "ru", null);
+      return Promise.resolve();
+    }
+    setTxOverlay(true, UnipubI18n.t("toastTranslating"));
+    return UnipubTranslate.prepare(state.data, UnipubI18n.UI.ru, code)
+      .then(function (result) {
+        UnipubI18n.setWorldLang(code, result.map);
+      })
+      .catch(function () {
+        UnipubI18n.setWorldLang("ru", null);
+      })
+      .then(function () {
+        setTxOverlay(false);
+      });
+  }
+
   function refreshUIText() {
     els.search.placeholder = UnipubI18n.t("searchPlaceholder");
     els.searchClear.setAttribute("aria-label", UnipubI18n.t("clearSearch"));
     if (els.splashFee) els.splashFee.textContent = UnipubI18n.t("serviceFeeSplash");
+    if (els.langOpenBtn) {
+      var meta = UnipubLanguages.find(UnipubI18n.getWorldCode());
+      var code = meta ? meta.code : "ru";
+      if (code === "kk") code = "kz";
+      els.langOpenBtn.textContent = code.toUpperCase();
+      els.langOpenBtn.setAttribute("aria-label", UnipubI18n.t("langBtn"));
+    }
     $("dockMenuLabel").textContent = UnipubI18n.t("menu");
     $("dockSectionsLabel").textContent = UnipubI18n.t("sections");
     $("dockRulesLabel").textContent = UnipubI18n.t("rules");
     $("dockTopLabel").textContent = UnipubI18n.t("top");
-    Array.prototype.slice.call(document.querySelectorAll(".lang-switch button")).forEach(function (btn) {
-      btn.classList.toggle("is-active", btn.getAttribute("data-lang") === UnipubI18n.getLang());
-    });
     setTheme(document.documentElement.getAttribute("data-theme") || "dark");
     renderBasket();
   }
@@ -698,7 +795,12 @@
     });
 
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape" && els.modal.classList.contains("is-on")) closeModal();
+      if (e.key !== "Escape") return;
+      if (!els.langModal.hidden) {
+        closeLangModal();
+        return;
+      }
+      if (els.modal.classList.contains("is-on")) closeModal();
     });
 
     els.themeBtn.addEventListener("click", function () {
@@ -747,17 +849,18 @@
       }
     });
 
-    document.querySelector(".lang-switch").addEventListener("click", function (e) {
-      var btn = e.target.closest("[data-lang]");
+    els.langOpenBtn.addEventListener("click", openLangModal);
+    els.langCloseBtn.addEventListener("click", closeLangModal);
+    els.langModal.addEventListener("click", function (e) {
+      if (e.target === els.langModal) closeLangModal();
+    });
+    els.langSearch.addEventListener("input", function () {
+      renderLangList(els.langSearch.value);
+    });
+    els.langList.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-world-lang]");
       if (!btn) return;
-      UnipubI18n.setLang(btn.getAttribute("data-lang"));
-      refreshUIText();
-      renderHeaderContacts();
-      renderTabs();
-      renderFilters();
-      renderMenu();
-      renderRules();
-      renderRecent();
+      applyWorldLanguage(btn.getAttribute("data-world-lang"));
     });
 
     $("dock").addEventListener("click", function (e) {
@@ -861,7 +964,15 @@
       basketWaiters: $("basketWaiters"),
       basketWaitersTitle: $("basketWaitersTitle"),
       basketWaitersGrid: $("basketWaitersGrid"),
-      splashFee: $("splashFee")
+      splashFee: $("splashFee"),
+      langOpenBtn: $("langOpenBtn"),
+      langModal: $("langModal"),
+      langModalTitle: $("langModalTitle"),
+      langCloseBtn: $("langCloseBtn"),
+      langSearch: $("langSearch"),
+      langList: $("langList"),
+      txOverlay: $("txOverlay"),
+      txOverlayText: $("txOverlayText")
     };
   }
 
@@ -879,16 +990,12 @@
       setTheme("dark");
     }
 
-    refreshUIText();
-    renderHeaderContacts();
-    renderTabs();
-    renderFilters();
-    renderMenu();
-    renderRules();
-    renderRecent();
-    renderBasket();
     bindEvents();
     startSplash();
+
+    restoreWorldLanguageOnBoot().then(function () {
+      refreshAllViews();
+    });
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js").catch(function () {});

@@ -1,5 +1,5 @@
 /**
- * Простой i18n для UI UNIPUB.
+ * i18n UNIPUB: нативные RU/KZ/EN + машинный перевод остальных языков меню.
  */
 (function (global) {
   "use strict";
@@ -36,6 +36,8 @@
       toastWaiter: "Нажмите кнопку вызова официанта на вашем столе",
       toastNeedTable: "Укажите номер стола",
       toastSentTo: "Заказ отправляется —",
+      toastTranslating: "Переводим меню…",
+      toastTranslateFail: "Не удалось перевести. Показан русский.",
       serviceFeeSplash: "Обслуживание 15%",
       table: "Стол №",
       basket: "Корзина",
@@ -50,7 +52,11 @@
       openMaps: "Карта",
       phone: "Позвонить",
       wa: "WhatsApp",
-      ig: "Instagram"
+      ig: "Instagram",
+      langTitle: "Язык меню",
+      langSearch: "Поиск языка…",
+      langClose: "Закрыть",
+      langBtn: "Язык"
     },
     kz: {
       greetingMorning: "Қайырлы таң · UNIPUB",
@@ -83,6 +89,8 @@
       toastWaiter: "Үстеліңіздегі даяшы шақыру түймесін басыңыз",
       toastNeedTable: "Үстел нөмірін жазыңыз",
       toastSentTo: "Тапсырыс жіберіледі —",
+      toastTranslating: "Мәзір аударылуда…",
+      toastTranslateFail: "Аудару сәтсіз. Орыс тілі көрсетілді.",
       serviceFeeSplash: "Қызмет көрсету 15%",
       table: "Үстел №",
       basket: "Себет",
@@ -97,7 +105,11 @@
       openMaps: "Карта",
       phone: "Қоңырау",
       wa: "WhatsApp",
-      ig: "Instagram"
+      ig: "Instagram",
+      langTitle: "Мәзір тілі",
+      langSearch: "Тілді іздеу…",
+      langClose: "Жабу",
+      langBtn: "Тіл"
     },
     en: {
       greetingMorning: "Good morning · UNIPUB",
@@ -130,6 +142,8 @@
       toastWaiter: "Press the call-waiter button on your table",
       toastNeedTable: "Enter your table number",
       toastSentTo: "Sending order to",
+      toastTranslating: "Translating menu…",
+      toastTranslateFail: "Translation failed. Showing Russian.",
       serviceFeeSplash: "Service charge 15%",
       table: "Table #",
       basket: "Cart",
@@ -144,33 +158,88 @@
       openMaps: "Map",
       phone: "Call",
       wa: "WhatsApp",
-      ig: "Instagram"
+      ig: "Instagram",
+      langTitle: "Menu language",
+      langSearch: "Search language…",
+      langClose: "Close",
+      langBtn: "Language"
     }
   };
 
   var lang = "ru";
+  var worldCode = "ru";
+  var txMap = null;
 
   function t(key) {
-    return (UI[lang] && UI[lang][key]) || (UI.ru && UI.ru[key]) || key;
+    if (txMap && UI.ru[key]) {
+      var ruVal = UI.ru[key];
+      var tr = UnipubTranslate.applyMap(ruVal, txMap);
+      if (tr && tr !== ruVal) return tr;
+    }
+    var pack = (lang === "kz" || lang === "en") ? lang : "ru";
+    return (UI[pack] && UI[pack][key]) || UI.ru[key] || key;
   }
 
   function localized(obj) {
-    if (!obj || typeof obj !== "object") return String(obj || "");
-    return obj[lang] || obj.ru || obj.en || "";
+    if (obj == null) return "";
+    if (typeof obj === "string") {
+      return txMap ? UnipubTranslate.applyMap(obj, txMap) : obj;
+    }
+    if (Array.isArray(obj)) {
+      return obj.map(function (item) { return localized(item); });
+    }
+    if (typeof obj !== "object") return String(obj);
+
+    if (!txMap && (lang === "kz" || lang === "en" || lang === "ru")) {
+      return obj[lang] || obj.ru || obj.en || "";
+    }
+
+    var base = obj.ru || obj.en || obj.kz || "";
+    if (Array.isArray(base)) {
+      return base.map(function (line) {
+        return txMap ? UnipubTranslate.applyMap(line, txMap) : line;
+      });
+    }
+    if (txMap) return UnipubTranslate.applyMap(base, txMap);
+    return base;
   }
 
   function setLang(next) {
+    // только нативные быстрые переключения
     lang = next === "kz" || next === "en" ? next : "ru";
-    try { localStorage.setItem("unipub:lang", lang); } catch (e) {}
-    document.documentElement.lang = lang === "kz" ? "kk" : lang;
+    worldCode = lang === "kz" ? "kk" : lang;
+    txMap = null;
+    try { localStorage.setItem("unipub:lang", worldCode); } catch (e) {}
+    document.documentElement.lang = worldCode;
+  }
+
+  function setWorldLang(code, map) {
+    worldCode = code || "ru";
+    if (UnipubTranslate.isNative(worldCode)) {
+      lang = UnipubTranslate.nativePack(worldCode);
+      txMap = null;
+    } else {
+      lang = "ru";
+      txMap = map || null;
+    }
+    try { localStorage.setItem("unipub:lang", worldCode); } catch (e) {}
+    document.documentElement.lang = UnipubTranslate.googleCode(worldCode);
+    document.documentElement.dir = /^(ar|he|fa|ur|ps|sd|yi|ckb)$/i.test(worldCode) ? "rtl" : "ltr";
   }
 
   function getLang() { return lang; }
+  function getWorldCode() { return worldCode; }
+  function getTxMap() { return txMap; }
 
   function loadSaved() {
     try {
       var saved = localStorage.getItem("unipub:lang");
-      if (saved) setLang(saved);
+      if (!saved) return;
+      if (saved === "ru" || saved === "en" || saved === "kz" || saved === "kk") {
+        setLang(saved === "kk" ? "kz" : saved);
+      } else {
+        worldCode = saved;
+      }
     } catch (e) {}
   }
 
@@ -178,7 +247,10 @@
     t: t,
     localized: localized,
     setLang: setLang,
+    setWorldLang: setWorldLang,
     getLang: getLang,
+    getWorldCode: getWorldCode,
+    getTxMap: getTxMap,
     loadSaved: loadSaved,
     UI: UI
   };

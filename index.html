@@ -41,11 +41,7 @@
 
   <div class="wrap">
     <div class="topbar">
-      <div class="lang-switch" role="group" aria-label="Language">
-        <button type="button" data-lang="ru" class="is-active">RU</button>
-        <button type="button" data-lang="kz">KZ</button>
-        <button type="button" data-lang="en">EN</button>
-      </div>
+      <button class="chip-btn" id="langOpenBtn" type="button">Язык</button>
       <button class="chip-btn" id="themeBtn" type="button">Светлая</button>
     </div>
 
@@ -115,6 +111,24 @@
 
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+  <div class="lang-modal" id="langModal" hidden>
+    <div class="lang-modal__panel" role="dialog" aria-modal="true" aria-labelledby="langModalTitle">
+      <div class="lang-modal__head">
+        <strong id="langModalTitle">Язык меню</strong>
+        <button type="button" class="lang-modal__close" id="langCloseBtn" aria-label="Close">×</button>
+      </div>
+      <input class="lang-modal__search" id="langSearch" type="search" placeholder="Поиск языка…" autocomplete="off">
+      <div class="lang-modal__list" id="langList"></div>
+    </div>
+  </div>
+
+  <div class="tx-overlay" id="txOverlay" hidden>
+    <div class="tx-overlay__box">
+      <div class="tx-overlay__spinner" aria-hidden="true"></div>
+      <p id="txOverlayText">Переводим меню…</p>
+    </div>
+  </div>
+
   <!-- Компактная корзина: не перекрывает контент, появляется только при наличии позиций -->
   <div class="basket" id="basket">
     <button type="button" class="basket__fab" id="basketFab" aria-expanded="false" aria-controls="basketPanel" hidden>
@@ -155,6 +169,8 @@
   </div>
 
   <script src="js/menu-data.js"></script>
+  <script src="js/languages.js"></script>
+  <script src="js/translate.js"></script>
   <script src="js/search.js"></script>
   <script src="js/i18n.js"></script>
   <script src="js/app.js"></script>
