@@ -1363,6 +1363,114 @@ main { padding: 0.6rem 0 1.25rem; }
   color: var(--text);
 }
 
+.basket__split-toggle {
+  width: 100%;
+  margin-bottom: 0.55rem;
+  padding: 0.55rem 0.5rem;
+  font-size: 0.78rem;
+}
+
+.basket__split-toggle.is-active {
+  border-color: rgba(255, 45, 146, 0.5);
+  color: var(--pink);
+}
+
+.basket__split {
+  margin-bottom: 0.65rem;
+  padding: 0.55rem 0 0.15rem;
+  border-top: 1px dashed var(--line);
+}
+
+.basket__split[hidden] { display: none !important; }
+
+.basket__split-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.55rem;
+}
+
+.split-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.2rem 0.15rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+}
+
+.split-person__name {
+  width: 4.8rem;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.15rem;
+}
+
+.split-person__remove {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+.split-add {
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  border: 1px dashed rgba(255, 45, 146, 0.45);
+  color: var(--pink);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.split-sum__title {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  color: var(--gold);
+  letter-spacing: 0.04em;
+}
+
+.split-sum__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.84rem;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.split-sum__meta {
+  margin: 0.1rem 0 0.4rem;
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.basket__who {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.basket__who select {
+  max-width: 58%;
+  padding: 0.35rem 0.45rem;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg-elev);
+  color: var(--text);
+  font-size: 0.75rem;
+}
+
 .basket__actions {
   display: grid;
   grid-template-columns: 1fr 1.4fr;

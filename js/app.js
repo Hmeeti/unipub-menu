@@ -9,10 +9,14 @@
     recent: "unipub:recent",
     theme: "unipub:theme",
     cart: "unipub:cart",
-    table: "unipub:table"
+    table: "unipub:table",
+    splitOn: "unipub:split-on",
+    splitPeople: "unipub:split-people",
+    splitAssign: "unipub:split-assign"
   };
 
   var SERVICE_RATE = 0.15;
+  var SHARED_ID = "shared";
 
   var WAITERS = [
     { id: "eleanora", name: "Элеанора", phone: "77771172605", display: "+7 777 117 2605" },
@@ -31,7 +35,10 @@
     activeDishId: null,
     cart: {},
     basketOpen: false,
-    waitersOpen: false
+    waitersOpen: false,
+    splitOn: false,
+    splitPeople: [],
+    splitAssign: {}
   };
 
   var els = {};
@@ -436,6 +443,145 @@
     try { localStorage.setItem(STORAGE.cart, JSON.stringify(state.cart)); } catch (e) {}
   }
 
+  function defaultSplitPeople() {
+    return [
+      { id: "p1", name: UnipubI18n.t("splitMe") },
+      { id: "p2", name: UnipubI18n.t("splitFriend") }
+    ];
+  }
+
+  function loadSplit() {
+    try {
+      state.splitOn = localStorage.getItem(STORAGE.splitOn) === "1";
+      var people = JSON.parse(localStorage.getItem(STORAGE.splitPeople) || "null");
+      state.splitPeople = Array.isArray(people) && people.length ? people : defaultSplitPeople();
+      var assign = JSON.parse(localStorage.getItem(STORAGE.splitAssign) || "{}");
+      state.splitAssign = assign && typeof assign === "object" ? assign : {};
+    } catch (e) {
+      state.splitOn = false;
+      state.splitPeople = defaultSplitPeople();
+      state.splitAssign = {};
+    }
+  }
+
+  function saveSplit() {
+    try {
+      localStorage.setItem(STORAGE.splitOn, state.splitOn ? "1" : "0");
+      localStorage.setItem(STORAGE.splitPeople, JSON.stringify(state.splitPeople));
+      localStorage.setItem(STORAGE.splitAssign, JSON.stringify(state.splitAssign));
+    } catch (e) {}
+  }
+
+  function newPersonId() {
+    return "p" + Date.now().toString(36) + Math.floor(Math.random() * 1000);
+  }
+
+  function getItemOwner(itemId) {
+    var owner = state.splitAssign[itemId];
+    if (owner === SHARED_ID) return SHARED_ID;
+    var exists = state.splitPeople.some(function (p) { return p.id === owner; });
+    return exists ? owner : (state.splitPeople[0] && state.splitPeople[0].id) || SHARED_ID;
+  }
+
+  function setItemOwner(itemId, ownerId) {
+    state.splitAssign[itemId] = ownerId;
+    saveSplit();
+    renderBasket();
+  }
+
+  function ensureAssignments() {
+    Object.keys(state.cart).forEach(function (id) {
+      if (!state.cart[id]) return;
+      if (!state.splitAssign[id]) {
+        state.splitAssign[id] = (state.splitPeople[0] && state.splitPeople[0].id) || SHARED_ID;
+      }
+    });
+    Object.keys(state.splitAssign).forEach(function (id) {
+      if (!state.cart[id]) delete state.splitAssign[id];
+    });
+  }
+
+  /**
+   * Считает долю каждого человека: личные позиции + равная доля «Общего» + 15% сервиса.
+   */
+  function calcSplit() {
+    ensureAssignments();
+    var peopleCount = Math.max(state.splitPeople.length, 1);
+    var buckets = {};
+    state.splitPeople.forEach(function (p) {
+      buckets[p.id] = { id: p.id, name: p.name, sub: 0 };
+    });
+
+    Object.keys(state.cart).forEach(function (id) {
+      var item = state.itemsById[id];
+      var qty = Number(state.cart[id]) || 0;
+      if (!item || qty <= 0) return;
+      var line = item.price * qty;
+      var owner = getItemOwner(id);
+      if (owner === SHARED_ID) {
+        var share = line / peopleCount;
+        state.splitPeople.forEach(function (p) {
+          buckets[p.id].sub += share;
+        });
+      } else if (buckets[owner]) {
+        buckets[owner].sub += line;
+      }
+    });
+
+    return state.splitPeople.map(function (p) {
+      var sub = Math.round(buckets[p.id].sub);
+      var service = Math.round(sub * SERVICE_RATE);
+      return {
+        id: p.id,
+        name: p.name,
+        sub: sub,
+        service: service,
+        total: sub + service
+      };
+    });
+  }
+
+  function toggleSplit() {
+    state.splitOn = !state.splitOn;
+    if (state.splitOn && !state.splitPeople.length) {
+      state.splitPeople = defaultSplitPeople();
+    }
+    saveSplit();
+    renderBasket();
+  }
+
+  function addSplitPerson() {
+    if (state.splitPeople.length >= 8) {
+      showToast(UnipubI18n.t("splitMaxPeople"));
+      return;
+    }
+    var name = UnipubI18n.t("splitGuest") + " " + (state.splitPeople.length + 1);
+    state.splitPeople.push({ id: newPersonId(), name: name });
+    saveSplit();
+    renderBasket();
+  }
+
+  function removeSplitPerson(personId) {
+    if (state.splitPeople.length <= 1) return;
+    state.splitPeople = state.splitPeople.filter(function (p) { return p.id !== personId; });
+    var fallback = state.splitPeople[0].id;
+    Object.keys(state.splitAssign).forEach(function (itemId) {
+      if (state.splitAssign[itemId] === personId) state.splitAssign[itemId] = fallback;
+    });
+    saveSplit();
+    renderBasket();
+  }
+
+  function renameSplitPerson(personId, name) {
+    var next = String(name || "").trim().slice(0, 18);
+    if (!next) return;
+    state.splitPeople.forEach(function (p) {
+      if (p.id === personId) p.name = next;
+    });
+    saveSplit();
+    renderBasket();
+  }
+
   function cartCount() {
     return Object.keys(state.cart).reduce(function (sum, id) {
       return sum + (Number(state.cart[id]) || 0);
@@ -493,7 +639,9 @@
   function clearCart() {
     state.cart = {};
     state.waitersOpen = false;
+    state.splitAssign = {};
     saveCart();
+    saveSplit();
     state.basketOpen = false;
     renderBasket();
   }
@@ -599,6 +747,52 @@
     els.basketWaitersTitle.textContent = UnipubI18n.t("basketWaitersTitle");
     els.basketWaiters.hidden = !state.waitersOpen;
 
+    if (els.basketSplitBtn) {
+      els.basketSplitBtn.textContent = state.splitOn
+        ? UnipubI18n.t("splitOff")
+        : UnipubI18n.t("splitOn");
+      els.basketSplitBtn.classList.toggle("is-active", state.splitOn);
+    }
+
+    if (els.basketSplitPanel) {
+      els.basketSplitPanel.hidden = !state.splitOn;
+    }
+
+    if (state.splitOn && els.basketSplitPeople && els.basketSplitSum) {
+      ensureAssignments();
+      els.basketSplitPeople.innerHTML = state.splitPeople.map(function (p) {
+        return (
+          '<div class="split-person" data-person="' + p.id + '">' +
+          '<input class="split-person__name" type="text" maxlength="18" value="' +
+          UnipubSearch.escapeHtml(p.name) + '" data-rename="' + p.id + '" aria-label="' +
+          UnipubSearch.escapeHtml(UnipubI18n.t("splitRename")) + '">' +
+          (state.splitPeople.length > 1
+            ? '<button type="button" class="split-person__remove" data-remove-person="' + p.id + '" aria-label="×">×</button>'
+            : "") +
+          "</div>"
+        );
+      }).join("") +
+      '<button type="button" class="split-add" id="splitAddBtn">' +
+      UnipubSearch.escapeHtml(UnipubI18n.t("splitAdd")) +
+      "</button>";
+
+      var parts = calcSplit();
+      els.basketSplitSum.innerHTML =
+        '<p class="split-sum__title">' + UnipubSearch.escapeHtml(UnipubI18n.t("splitByPerson")) + "</p>" +
+        parts.map(function (part) {
+          return (
+            '<div class="split-sum__row">' +
+            "<span>" + UnipubSearch.escapeHtml(part.name) + "</span>" +
+            "<strong>" + money(part.total) + "</strong>" +
+            "</div>" +
+            '<div class="split-sum__meta">' +
+            UnipubSearch.escapeHtml(UnipubI18n.t("basketSub")) + " " + money(part.sub) +
+            " · " + UnipubSearch.escapeHtml(UnipubI18n.t("basketService")) + " " + money(part.service) +
+            "</div>"
+          );
+        }).join("");
+    }
+
     els.basketWaitersGrid.innerHTML = WAITERS.map(function (w) {
       return (
         '<button type="button" class="waiter-btn" data-waiter="' + w.id + '">' +
@@ -612,6 +806,23 @@
       var item = state.itemsById[id];
       var qty = Number(state.cart[id]) || 0;
       if (!item || qty <= 0) return;
+      var owner = getItemOwner(id);
+      var whoSelect = "";
+      if (state.splitOn) {
+        var opts = [{ id: SHARED_ID, name: UnipubI18n.t("splitShared") }].concat(state.splitPeople);
+        whoSelect =
+          '<label class="basket__who">' +
+          "<span>" + UnipubSearch.escapeHtml(UnipubI18n.t("splitWho")) + "</span>" +
+          '<select data-split-item="' + id + '">' +
+          opts.map(function (p) {
+            return (
+              '<option value="' + p.id + '"' + (p.id === owner ? " selected" : "") + ">" +
+              UnipubSearch.escapeHtml(p.name) +
+              "</option>"
+            );
+          }).join("") +
+          "</select></label>";
+      }
       html.push(
         '<div class="basket__item" data-cart-id="' + id + '">' +
         '<p class="basket__name">' + UnipubSearch.escapeHtml(UnipubI18n.localized(item.name)) + "</p>" +
@@ -620,7 +831,9 @@
         '<button type="button" data-cart-dec="' + id + '" aria-label="-">−</button>' +
         "<span>" + qty + "</span>" +
         '<button type="button" data-cart-inc="' + id + '" aria-label="+">+</button>' +
-        "</div></div>"
+        "</div>" +
+        whoSelect +
+        "</div>"
       );
     });
     els.basketList.innerHTML = html.join("") || ("<p class=\"modal__text\">" + UnipubSearch.escapeHtml(UnipubI18n.t("basketEmpty")) + "</p>");
@@ -866,9 +1079,30 @@
 
     els.basketClear.addEventListener("click", clearCart);
     els.basketSend.addEventListener("click", showWaitersPicker);
+    if (els.basketSplitBtn) {
+      els.basketSplitBtn.addEventListener("click", toggleSplit);
+    }
 
     if (els.basketTable) {
       els.basketTable.addEventListener("input", saveTable);
+    }
+
+    if (els.basketSplitPeople) {
+      els.basketSplitPeople.addEventListener("click", function (e) {
+        if (e.target.closest("#splitAddBtn") || e.target.id === "splitAddBtn") {
+          addSplitPerson();
+          return;
+        }
+        var remove = e.target.closest("[data-remove-person]");
+        if (remove) {
+          removeSplitPerson(remove.getAttribute("data-remove-person"));
+        }
+      });
+      els.basketSplitPeople.addEventListener("change", function (e) {
+        var input = e.target.closest("[data-rename]");
+        if (!input) return;
+        renameSplitPerson(input.getAttribute("data-rename"), input.value);
+      });
     }
 
     els.basketWaitersGrid.addEventListener("click", function (e) {
@@ -891,6 +1125,12 @@
         var idDec = dec.getAttribute("data-cart-dec");
         setCartQty(idDec, (Number(state.cart[idDec]) || 0) - 1);
       }
+    });
+
+    els.basketList.addEventListener("change", function (e) {
+      var select = e.target.closest("[data-split-item]");
+      if (!select) return;
+      setItemOwner(select.getAttribute("data-split-item"), select.value);
     });
 
     els.langOpenBtn.addEventListener("click", openLangModal);
@@ -1008,6 +1248,10 @@
       basketWaiters: $("basketWaiters"),
       basketWaitersTitle: $("basketWaitersTitle"),
       basketWaitersGrid: $("basketWaitersGrid"),
+      basketSplitBtn: $("basketSplitBtn"),
+      basketSplitPanel: $("basketSplitPanel"),
+      basketSplitPeople: $("basketSplitPeople"),
+      basketSplitSum: $("basketSplitSum"),
       splashFee: $("splashFee"),
       langOpenBtn: $("langOpenBtn"),
       langModal: $("langModal"),
@@ -1025,6 +1269,7 @@
     UnipubI18n.loadSaved();
     cacheEls();
     loadCart();
+    loadSplit();
     loadTable();
 
     try {

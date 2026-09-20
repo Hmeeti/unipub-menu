@@ -156,6 +156,11 @@
         <div class="basket__sumline"><span id="basketSubLabel">Сумма</span> <strong id="basketSubtotal">0 ₸</strong></div>
         <div class="basket__sumline"><span id="basketServiceLabel">Обслуживание 15%</span> <strong id="basketService">0 ₸</strong></div>
         <div class="basket__total"><span id="basketTotalLabel">Итого</span> <strong id="basketTotal">0 ₸</strong></div>
+        <button type="button" class="btn btn--ghost basket__split-toggle" id="basketSplitBtn">Разделить счёт</button>
+        <div class="basket__split" id="basketSplitPanel" hidden>
+          <div class="basket__split-people" id="basketSplitPeople"></div>
+          <div class="basket__split-sum" id="basketSplitSum"></div>
+        </div>
         <div class="basket__actions">
           <button type="button" class="btn btn--ghost" id="basketClear">Очистить</button>
           <button type="button" class="btn btn--primary" id="basketSend">Выбрать официанта</button>
