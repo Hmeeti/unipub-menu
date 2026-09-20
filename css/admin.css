@@ -490,6 +490,21 @@ button {
   font-size: 0.72rem;
 }
 
+.switch {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.35rem 0;
+  font-size: 0.86rem;
+  color: var(--text);
+}
+
+.switch input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--pink);
+}
+
 @media (min-width: 480px) {
   .content { padding-left: 0.85rem; padding-right: 0.85rem; }
 }

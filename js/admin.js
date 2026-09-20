@@ -8,7 +8,16 @@
   var LIVE_KEY = "unipub:live-data";
   var PIN_KEY = "unipub:admin-pin";
   var AUTH_KEY = "unipub:admin-auth";
+  var GH_KEY = "unipub:gh-config";
   var DEFAULT_PIN = "0000";
+  var DEFAULT_GH = {
+    owner: "Hmeeti",
+    repo: "unipub-menu",
+    branch: "main",
+    path: "js/menu-data.js",
+    token: "",
+    autoPush: true
+  };
 
   var FLAG_OPTS = [
     { id: "hit", label: "Хит" },
@@ -24,7 +33,8 @@
     tab: "items",
     query: "",
     toastTimer: null,
-    editing: null
+    editing: null,
+    pushing: false
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -39,7 +49,7 @@
     el.textContent = msg;
     el.classList.add("is-on");
     clearTimeout(state.toastTimer);
-    state.toastTimer = setTimeout(function () { el.classList.remove("is-on"); }, 2400);
+    state.toastTimer = setTimeout(function () { el.classList.remove("is-on"); }, 3200);
   }
 
   function escapeHtml(str) {
@@ -79,12 +89,128 @@
     return ensureShape(window.UNIPUB_DATA);
   }
 
+  function getGhConfig() {
+    var cfg = clone(DEFAULT_GH);
+    try {
+      var raw = localStorage.getItem(GH_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") {
+          cfg.owner = String(parsed.owner || cfg.owner).trim() || cfg.owner;
+          cfg.repo = String(parsed.repo || cfg.repo).trim() || cfg.repo;
+          cfg.branch = String(parsed.branch || cfg.branch).trim() || cfg.branch;
+          cfg.path = String(parsed.path || cfg.path).trim() || cfg.path;
+          cfg.token = String(parsed.token || "").trim();
+          cfg.autoPush = parsed.autoPush !== false;
+        }
+      }
+    } catch (e) {}
+    return cfg;
+  }
+
+  function setGhConfig(cfg) {
+    try {
+      localStorage.setItem(GH_KEY, JSON.stringify({
+        owner: cfg.owner,
+        repo: cfg.repo,
+        branch: cfg.branch,
+        path: cfg.path,
+        token: cfg.token,
+        autoPush: Boolean(cfg.autoPush)
+      }));
+    } catch (e) {}
+  }
+
+  function menuFileText() {
+    return "window.UNIPUB_DATA = " + JSON.stringify(state.data, null, 2) + ";\n";
+  }
+
+  function utf8ToBase64(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+
+  function pushToGithub(opts) {
+    opts = opts || {};
+    var cfg = getGhConfig();
+    if (!cfg.token) {
+      if (!opts.silent) toast("Сначала вставь GitHub token в Система");
+      return Promise.resolve(false);
+    }
+    if (state.pushing) {
+      if (!opts.silent) toast("Уже пушу…");
+      return Promise.resolve(false);
+    }
+
+    state.pushing = true;
+    if (!opts.silent) toast("Пушу на GitHub…");
+
+    var apiBase = "https://api.github.com/repos/" +
+      encodeURIComponent(cfg.owner) + "/" +
+      encodeURIComponent(cfg.repo) + "/contents/" +
+      cfg.path.split("/").map(encodeURIComponent).join("/");
+    var headers = {
+      Accept: "application/vnd.github+json",
+      Authorization: "Bearer " + cfg.token,
+      "X-GitHub-Api-Version": "2022-11-28",
+      "Content-Type": "application/json"
+    };
+
+    return fetch(apiBase + "?ref=" + encodeURIComponent(cfg.branch), {
+      headers: headers
+    })
+      .then(function (res) {
+        if (res.status === 404) return { sha: null };
+        if (!res.ok) {
+          return res.json().catch(function () { return {}; }).then(function (body) {
+            throw new Error((body && body.message) || ("HTTP " + res.status));
+          });
+        }
+        return res.json();
+      })
+      .then(function (meta) {
+        var body = {
+          message: opts.message || ("Admin: update menu " + new Date().toISOString().slice(0, 16).replace("T", " ")),
+          content: utf8ToBase64(menuFileText()),
+          branch: cfg.branch
+        };
+        if (meta && meta.sha) body.sha = meta.sha;
+        return fetch(apiBase, {
+          method: "PUT",
+          headers: headers,
+          body: JSON.stringify(body)
+        });
+      })
+      .then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (body) {
+          if (!res.ok) throw new Error((body && body.message) || ("HTTP " + res.status));
+          return body;
+        });
+      })
+      .then(function () {
+        state.pushing = false;
+        if (!opts.silent) toast("Запушено · сайт обновится через ~1 мин");
+        return true;
+      })
+      .catch(function (err) {
+        state.pushing = false;
+        if (!opts.silent) toast("Пуш не вышел: " + (err && err.message ? err.message : "ошибка"));
+        return false;
+      });
+  }
+
   function persist(silent) {
     try {
       localStorage.setItem(LIVE_KEY, JSON.stringify(state.data));
-      if (!silent) toast("Сохранено · меню обновится");
     } catch (e) {
       toast("Не удалось сохранить");
+      return;
+    }
+
+    var cfg = getGhConfig();
+    if (cfg.autoPush && cfg.token) {
+      pushToGithub({ silent: Boolean(silent) });
+    } else if (!silent) {
+      toast(cfg.token ? "Сохранено локально (автопуш выкл)" : "Сохранено · нужен token для пуша");
     }
   }
 
@@ -350,12 +476,25 @@
   function renderSystem() {
     var live = false;
     try { live = Boolean(localStorage.getItem(LIVE_KEY)); } catch (e) {}
+    var gh = getGhConfig();
     $("content").innerHTML =
       '<div class="stat-grid">' +
       '<div class="stat"><strong>' + state.data.items.length + "</strong><span>Блюд</span></div>" +
       '<div class="stat"><strong>' + state.data.categories.length + "</strong><span>Категорий</span></div>" +
       "</div>" +
       '<div class="card">' +
+      '<p class="card__title">Автопуш на GitHub</p>' +
+      '<p class="card__meta" style="margin-bottom:0.75rem">Token хранится только на этом телефоне. Создай Fine-grained PAT с правом Contents: Read and write для репо unipub-menu.</p>' +
+      '<div class="field"><label>GitHub token</label><input id="ghToken" type="password" autocomplete="off" placeholder="github_pat_…" value="' + escapeHtml(gh.token) + '"></div>' +
+      '<div class="field"><label>Owner</label><input id="ghOwner" value="' + escapeHtml(gh.owner) + '"></div>' +
+      '<div class="field"><label>Repo</label><input id="ghRepo" value="' + escapeHtml(gh.repo) + '"></div>' +
+      '<div class="field"><label>Branch</label><input id="ghBranch" value="' + escapeHtml(gh.branch) + '"></div>' +
+      '<div class="field"><label>Путь файла</label><input id="ghPath" value="' + escapeHtml(gh.path) + '"></div>' +
+      '<label class="switch"><input type="checkbox" id="ghAuto"' + (gh.autoPush ? " checked" : "") + '><span>Автопуш при каждом сохранении</span></label>' +
+      '<button type="button" class="btn btn--primary btn--block" id="saveGh" style="margin-top:0.75rem">Сохранить настройки GitHub</button>' +
+      '<button type="button" class="btn btn--ghost btn--block" id="pushNow" style="margin-top:0.45rem">Пушнуть сейчас</button>' +
+      "</div>" +
+      '<div class="card" style="margin-top:0.75rem">' +
       '<p class="card__title">Правила (RU)</p>' +
       '<div class="field"><textarea id="rulesRu">' + escapeHtml((state.data.rules.ru || []).join("\n")) + "</textarea></div>" +
       '<p class="card__title">Правила (KZ)</p>' +
@@ -373,8 +512,9 @@
       "</div>" +
       '<div class="card" style="margin-top:0.75rem">' +
       '<p class="card__title">Публикация</p>' +
-      '<p class="card__meta" style="margin-bottom:0.75rem">Сейчас: ' + (live ? "live-данные на этом телефоне" : "базовый menu-data.js") + "</p>" +
-      '<button type="button" class="btn btn--primary btn--block" id="exportJs">Скачать menu-data.js</button>' +
+      '<p class="card__meta" style="margin-bottom:0.75rem">Сейчас: ' + (live ? "live-данные на этом телефоне" : "базовый menu-data.js") +
+      (gh.token ? (gh.autoPush ? " · автопуш вкл" : " · автопуш выкл") : " · token не задан") + "</p>" +
+      '<button type="button" class="btn btn--ghost btn--block" id="exportJs">Скачать menu-data.js</button>' +
       '<button type="button" class="btn btn--ghost btn--block" id="exportJson" style="margin-top:0.45rem">Скачать JSON</button>' +
       '<button type="button" class="btn btn--ghost btn--block" id="importJson" style="margin-top:0.45rem">Импорт JSON</button>' +
       '<input id="importFile" type="file" accept="application/json,.json" hidden>' +
@@ -524,9 +664,8 @@
   }
 
   function exportMenuJs() {
-    var body = JSON.stringify(state.data, null, 2);
-    download("menu-data.js", "window.UNIPUB_DATA = " + body + ";\n", "text/javascript;charset=utf-8");
-    toast("Файл скачан · залей в репозиторий");
+    download("menu-data.js", menuFileText(), "text/javascript;charset=utf-8");
+    toast("Файл скачан");
   }
 
   /* ---------- Events ---------- */
@@ -632,6 +771,24 @@
         return;
       }
       if (e.target.id === "importJson") return $("importFile").click();
+      if (e.target.id === "saveGh") {
+        setGhConfig({
+          owner: $("ghOwner").value.trim() || DEFAULT_GH.owner,
+          repo: $("ghRepo").value.trim() || DEFAULT_GH.repo,
+          branch: $("ghBranch").value.trim() || DEFAULT_GH.branch,
+          path: $("ghPath").value.trim() || DEFAULT_GH.path,
+          token: $("ghToken").value.trim(),
+          autoPush: $("ghAuto").checked
+        });
+        toast("GitHub настройки сохранены");
+        render();
+        return;
+      }
+      if (e.target.id === "pushNow") {
+        persist(true);
+        pushToGithub({ silent: false, message: "Admin: manual publish" });
+        return;
+      }
       if (e.target.id === "clearLive") {
         try { localStorage.removeItem(LIVE_KEY); } catch (err) {}
         state.data = ensureShape(window.UNIPUB_DATA);
