@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+  <meta name="theme-color" content="#000000">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>UNIPUB Admin</title>
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+  <canvas id="starfield" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+
+  <div class="gate" id="gate">
+    <div class="gate__card glass">
+      <p class="gate__brand">unipub<span>.</span></p>
+      <h1>Admin</h1>
+      <p class="gate__hint">Вход только для персонала</p>
+      <input id="pinInput" type="password" inputmode="numeric" maxlength="12" placeholder="PIN" autocomplete="off">
+      <button type="button" class="btn btn--primary" id="pinEnter">Войти</button>
+      <p class="gate__err" id="pinErr" hidden>Неверный PIN</p>
+    </div>
+  </div>
+
+  <div class="app" id="app" hidden>
+    <header class="top glass">
+      <div>
+        <p class="top__eyebrow">UNIPUB</p>
+        <h1 id="screenTitle">Блюда</h1>
+      </div>
+      <div class="top__actions">
+        <button type="button" class="icon-btn" id="btnPreview" aria-label="Меню">☰</button>
+        <button type="button" class="icon-btn" id="btnSave" aria-label="Сохранить">✓</button>
+      </div>
+    </header>
+
+    <main class="content" id="content"></main>
+
+    <nav class="tabbar glass" aria-label="Разделы">
+      <button type="button" class="tabbar__btn is-on" data-tab="items">
+        <span class="tabbar__ico">◉</span><span>Блюда</span>
+      </button>
+      <button type="button" class="tabbar__btn" data-tab="taxonomy">
+        <span class="tabbar__ico">▦</span><span>Разделы</span>
+      </button>
+      <button type="button" class="tabbar__btn" data-tab="venue">
+        <span class="tabbar__ico">⌂</span><span>Заведение</span>
+      </button>
+      <button type="button" class="tabbar__btn" data-tab="staff">
+        <span class="tabbar__ico">☺</span><span>Зал</span>
+      </button>
+      <button type="button" class="tabbar__btn" data-tab="system">
+        <span class="tabbar__ico">⚙</span><span>Система</span>
+      </button>
+    </nav>
+  </div>
+
+  <div class="sheet" id="sheet" hidden>
+    <div class="sheet__backdrop" id="sheetBackdrop"></div>
+    <div class="sheet__panel glass" id="sheetPanel"></div>
+  </div>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <script src="js/menu-data.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>

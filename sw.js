@@ -1,10 +1,13 @@
 /* Offline shell для меню UNIPUB */
-const CACHE = "unipub-v17";
+const CACHE = "unipub-v18";
 const ASSETS = [
   "./",
   "./index.html",
+  "./admin.html",
   "./css/style.css",
+  "./css/admin.css",
   "./js/app.js",
+  "./js/admin.js",
   "./js/search.js",
   "./js/i18n.js",
   "./js/menu-data.js",

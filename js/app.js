@@ -18,12 +18,45 @@
   var SERVICE_RATE = 0.15;
   var SHARED_ID = "shared";
 
-  var WAITERS = [
+  var DEFAULT_WAITERS = [
     { id: "eleanora", name: "Элеанора", phone: "77771172605", display: "+7 777 117 2605" },
     { id: "ekaterina", name: "Екатерина", phone: "77056522248", display: "+7 705 652 2248" },
     { id: "marina", name: "Марина", phone: "77055705732", display: "+7 705 570 5732" },
     { id: "anastasia", name: "Анастасия", phone: "77085887959", display: "+7 708 588 7959" }
   ];
+
+  var WAITERS = DEFAULT_WAITERS.slice();
+
+  function resolveMenuData() {
+    var data = window.UNIPUB_DATA || null;
+    try {
+      var raw = localStorage.getItem("unipub:live-data");
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && Array.isArray(parsed.items)) data = parsed;
+      }
+    } catch (e) {}
+    return data;
+  }
+
+  function applyRuntimeConfig(data) {
+    if (!data) return;
+    if (typeof data.serviceRate === "number" && data.serviceRate >= 0) {
+      SERVICE_RATE = data.serviceRate;
+    }
+    if (Array.isArray(data.waiters) && data.waiters.length) {
+      WAITERS = data.waiters.map(function (w) {
+        return {
+          id: String(w.id || "").trim() || ("w" + Date.now()),
+          name: String(w.name || "").trim() || "Официант",
+          phone: String(w.phone || "").replace(/\D/g, ""),
+          display: String(w.display || w.phone || "").trim()
+        };
+      }).filter(function (w) { return w.phone; });
+    } else {
+      WAITERS = DEFAULT_WAITERS.slice();
+    }
+  }
 
   var state = {
     data: null,
@@ -1380,6 +1413,7 @@
   }
 
   function boot(data) {
+    applyRuntimeConfig(data);
     state.data = data;
     UnipubI18n.loadSaved();
     cacheEls();
@@ -1429,8 +1463,9 @@
 
   cacheEls();
 
-  if (window.UNIPUB_DATA) {
-    boot(window.UNIPUB_DATA);
+  var bootData = resolveMenuData();
+  if (bootData) {
+    boot(bootData);
   } else {
     document.body.innerHTML =
       '<main style="padding:2rem;font-family:Manrope,sans-serif;background:#08080a;color:#f5f1ea;min-height:100vh">' +

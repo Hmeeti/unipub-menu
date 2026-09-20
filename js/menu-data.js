@@ -879,5 +879,12 @@ window.UNIPUB_DATA = {
     "ru": ["тунец", "стейк", "коктейль", "VIP", "десерт", "пиво"],
     "kz": ["тунец", "стейк", "коктейль", "VIP", "десерт"],
     "en": ["tuna", "steak", "cocktail", "VIP", "dessert", "beer"]
-  }
+  },
+  "serviceRate": 0.15,
+  "waiters": [
+    { "id": "eleanora", "name": "Элеанора", "phone": "77771172605", "display": "+7 777 117 2605" },
+    { "id": "ekaterina", "name": "Екатерина", "phone": "77056522248", "display": "+7 705 652 2248" },
+    { "id": "marina", "name": "Марина", "phone": "77055705732", "display": "+7 705 570 5732" },
+    { "id": "anastasia", "name": "Анастасия", "phone": "77085887959", "display": "+7 708 588 7959" }
+  ]
 };
