@@ -21,7 +21,7 @@
     <div class="gate__card glass">
       <p class="gate__brand">unipub<span>.</span></p>
       <h1>Admin</h1>
-      <p class="gate__hint">Вход только для персонала</p>
+      <p class="gate__hint">Вход через Render API · PIN из Environment</p>
       <input id="pinInput" type="password" inputmode="numeric" maxlength="12" placeholder="PIN" autocomplete="off">
       <button type="button" class="btn btn--primary" id="pinEnter">Войти</button>
       <p class="gate__err" id="pinErr" hidden>Неверный PIN</p>
@@ -69,6 +69,12 @@
   <div class="toast" id="toast" role="status"></div>
 
   <script src="js/menu-data.js"></script>
+  <script>
+    // На GitHub Pages админка не работает — только Render API
+    if (/\.github\.io$/i.test(location.hostname)) {
+      location.replace("https://unipub-admin.onrender.com/");
+    }
+  </script>
   <script src="js/admin.js"></script>
 </body>
 </html>

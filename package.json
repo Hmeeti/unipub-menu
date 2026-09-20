@@ -1,0 +1,17 @@
+{
+  "name": "unipub-admin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "UNIPUB admin API on Render — save menu and auto-push to GitHub",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}

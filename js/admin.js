@@ -1,23 +1,12 @@
 /**
- * UNIPUB Admin — полный контроль меню + procedural starfield.
- * Данные: localStorage unipub:live-data (мгновенно в меню) + экспорт menu-data.js
+ * UNIPUB Admin — UI на Render, автопуш через серверный GitHub token.
  */
 (function () {
   "use strict";
 
-  var LIVE_KEY = "unipub:live-data";
-  var PIN_KEY = "unipub:admin-pin";
-  var AUTH_KEY = "unipub:admin-auth";
-  var GH_KEY = "unipub:gh-config";
-  var DEFAULT_PIN = "0000";
-  var DEFAULT_GH = {
-    owner: "Hmeeti",
-    repo: "unipub-menu",
-    branch: "main",
-    path: "js/menu-data.js",
-    token: "",
-    autoPush: true
-  };
+  var AUTH_KEY = "unipub:admin-token";
+  var AUTO_KEY = "unipub:auto-push";
+  var API = String(window.UNIPUB_API || "").replace(/\/$/, "");
 
   var FLAG_OPTS = [
     { id: "hit", label: "Хит" },
@@ -34,7 +23,9 @@
     query: "",
     toastTimer: null,
     editing: null,
-    pushing: false
+    pushing: false,
+    me: null,
+    menuUrl: "https://hmeeti.github.io/unipub-menu/"
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -69,7 +60,7 @@
   }
 
   function ensureShape(data) {
-    var d = data && typeof data === "object" ? clone(data) : clone(window.UNIPUB_DATA);
+    var d = data && typeof data === "object" ? clone(data) : { items: [] };
     if (!d.venue) d.venue = {};
     if (!Array.isArray(d.categories)) d.categories = [];
     if (!Array.isArray(d.filters)) d.filters = [];
@@ -81,156 +72,108 @@
     return d;
   }
 
-  function loadData() {
-    try {
-      var raw = localStorage.getItem(LIVE_KEY);
-      if (raw) return ensureShape(JSON.parse(raw));
-    } catch (e) {}
-    return ensureShape(window.UNIPUB_DATA);
+  function getToken() {
+    try { return sessionStorage.getItem(AUTH_KEY) || ""; } catch (e) { return ""; }
   }
 
-  function getGhConfig() {
-    var cfg = clone(DEFAULT_GH);
+  function setToken(token) {
     try {
-      var raw = localStorage.getItem(GH_KEY);
-      if (raw) {
-        var parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object") {
-          cfg.owner = String(parsed.owner || cfg.owner).trim() || cfg.owner;
-          cfg.repo = String(parsed.repo || cfg.repo).trim() || cfg.repo;
-          cfg.branch = String(parsed.branch || cfg.branch).trim() || cfg.branch;
-          cfg.path = String(parsed.path || cfg.path).trim() || cfg.path;
-          cfg.token = String(parsed.token || "").trim();
-          cfg.autoPush = parsed.autoPush !== false;
+      if (token) sessionStorage.setItem(AUTH_KEY, token);
+      else sessionStorage.removeItem(AUTH_KEY);
+    } catch (e) {}
+  }
+
+  function autoPushOn() {
+    try {
+      var v = localStorage.getItem(AUTO_KEY);
+      if (v === null) return true;
+      return v === "1";
+    } catch (e) { return true; }
+  }
+
+  function setAutoPush(on) {
+    try { localStorage.setItem(AUTO_KEY, on ? "1" : "0"); } catch (e) {}
+  }
+
+  function api(path, opts) {
+    opts = opts || {};
+    var headers = Object.assign({ "Content-Type": "application/json" }, opts.headers || {});
+    var token = getToken();
+    if (token) headers.Authorization = "Bearer " + token;
+    return fetch(API + path, {
+      method: opts.method || "GET",
+      headers: headers,
+      body: opts.body ? JSON.stringify(opts.body) : undefined
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (body) {
+        if (!res.ok) {
+          var err = new Error((body && body.error) || ("HTTP " + res.status));
+          err.status = res.status;
+          err.body = body;
+          throw err;
         }
-      }
-    } catch (e) {}
-    return cfg;
-  }
-
-  function setGhConfig(cfg) {
-    try {
-      localStorage.setItem(GH_KEY, JSON.stringify({
-        owner: cfg.owner,
-        repo: cfg.repo,
-        branch: cfg.branch,
-        path: cfg.path,
-        token: cfg.token,
-        autoPush: Boolean(cfg.autoPush)
-      }));
-    } catch (e) {}
+        return body;
+      });
+    });
   }
 
   function menuFileText() {
     return "window.UNIPUB_DATA = " + JSON.stringify(state.data, null, 2) + ";\n";
   }
 
-  function utf8ToBase64(str) {
-    return btoa(unescape(encodeURIComponent(str)));
-  }
-
-  function pushToGithub(opts) {
-    opts = opts || {};
-    var cfg = getGhConfig();
-    if (!cfg.token) {
-      if (!opts.silent) toast("Сначала вставь GitHub token в Система");
-      return Promise.resolve(false);
-    }
+  function persist(silent) {
     if (state.pushing) {
-      if (!opts.silent) toast("Уже пушу…");
+      if (!silent) toast("Уже сохраняю…");
       return Promise.resolve(false);
     }
-
     state.pushing = true;
-    if (!opts.silent) toast("Пушу на GitHub…");
+    if (!silent) toast(autoPushOn() ? "Сохраняю и пушу…" : "Сохраняю…");
 
-    var apiBase = "https://api.github.com/repos/" +
-      encodeURIComponent(cfg.owner) + "/" +
-      encodeURIComponent(cfg.repo) + "/contents/" +
-      cfg.path.split("/").map(encodeURIComponent).join("/");
-    var headers = {
-      Accept: "application/vnd.github+json",
-      Authorization: "Bearer " + cfg.token,
-      "X-GitHub-Api-Version": "2022-11-28",
-      "Content-Type": "application/json"
-    };
-
-    return fetch(apiBase + "?ref=" + encodeURIComponent(cfg.branch), {
-      headers: headers
+    return api("/api/data", {
+      method: "PUT",
+      body: {
+        data: state.data,
+        publish: autoPushOn(),
+        message: "Admin: update menu"
+      }
     })
       .then(function (res) {
-        if (res.status === 404) return { sha: null };
-        if (!res.ok) {
-          return res.json().catch(function () { return {}; }).then(function (body) {
-            throw new Error((body && body.message) || ("HTTP " + res.status));
-          });
-        }
-        return res.json();
-      })
-      .then(function (meta) {
-        var body = {
-          message: opts.message || ("Admin: update menu " + new Date().toISOString().slice(0, 16).replace("T", " ")),
-          content: utf8ToBase64(menuFileText()),
-          branch: cfg.branch
-        };
-        if (meta && meta.sha) body.sha = meta.sha;
-        return fetch(apiBase, {
-          method: "PUT",
-          headers: headers,
-          body: JSON.stringify(body)
-        });
-      })
-      .then(function (res) {
-        return res.json().catch(function () { return {}; }).then(function (body) {
-          if (!res.ok) throw new Error((body && body.message) || ("HTTP " + res.status));
-          return body;
-        });
-      })
-      .then(function () {
         state.pushing = false;
-        if (!opts.silent) toast("Запушено · сайт обновится через ~1 мин");
+        if (res.menuUrl) state.menuUrl = res.menuUrl;
+        if (!silent) {
+          toast(res.published ? "Запушено · сайт ~1 мин" : "Сохранено на сервере");
+        }
         return true;
       })
       .catch(function (err) {
         state.pushing = false;
-        if (!opts.silent) toast("Пуш не вышел: " + (err && err.message ? err.message : "ошибка"));
+        if (err && err.status === 401) {
+          setToken("");
+          location.reload();
+          return false;
+        }
+        if (!silent) toast("Ошибка: " + (err && err.message ? err.message : "save"));
         return false;
       });
   }
 
-  function persist(silent) {
-    try {
-      localStorage.setItem(LIVE_KEY, JSON.stringify(state.data));
-    } catch (e) {
-      toast("Не удалось сохранить");
-      return;
-    }
-
-    var cfg = getGhConfig();
-    if (cfg.autoPush && cfg.token) {
-      pushToGithub({ silent: Boolean(silent) });
-    } else if (!silent) {
-      toast(cfg.token ? "Сохранено локально (автопуш выкл)" : "Сохранено · нужен token для пуша");
-    }
-  }
-
-  function getPin() {
-    try { return localStorage.getItem(PIN_KEY) || DEFAULT_PIN; } catch (e) { return DEFAULT_PIN; }
-  }
-
-  function setPin(pin) {
-    try { localStorage.setItem(PIN_KEY, String(pin || DEFAULT_PIN)); } catch (e) {}
-  }
-
-  function isAuthed() {
-    try { return sessionStorage.getItem(AUTH_KEY) === "1"; } catch (e) { return false; }
-  }
-
-  function setAuthed(on) {
-    try {
-      if (on) sessionStorage.setItem(AUTH_KEY, "1");
-      else sessionStorage.removeItem(AUTH_KEY);
-    } catch (e) {}
+  function publishNow() {
+    if (state.pushing) return toast("Уже пушу…");
+    state.pushing = true;
+    toast("Пушу на GitHub…");
+    return api("/api/publish", {
+      method: "POST",
+      body: { data: state.data, message: "Admin: manual publish" }
+    })
+      .then(function (res) {
+        state.pushing = false;
+        if (res.menuUrl) state.menuUrl = res.menuUrl;
+        toast("Запушено · сайт ~1 мин");
+      })
+      .catch(function (err) {
+        state.pushing = false;
+        toast("Пуш не вышел: " + (err && err.message ? err.message : "ошибка"));
+      });
   }
 
   /* ---------- Starfield (procedural, retina) ---------- */
@@ -474,25 +417,21 @@
   }
 
   function renderSystem() {
-    var live = false;
-    try { live = Boolean(localStorage.getItem(LIVE_KEY)); } catch (e) {}
-    var gh = getGhConfig();
+    var me = state.me || {};
+    var auto = autoPushOn();
     $("content").innerHTML =
       '<div class="stat-grid">' +
       '<div class="stat"><strong>' + state.data.items.length + "</strong><span>Блюд</span></div>" +
       '<div class="stat"><strong>' + state.data.categories.length + "</strong><span>Категорий</span></div>" +
       "</div>" +
       '<div class="card">' +
-      '<p class="card__title">Автопуш на GitHub</p>' +
-      '<p class="card__meta" style="margin-bottom:0.75rem">Token хранится только на этом телефоне. Создай Fine-grained PAT с правом Contents: Read and write для репо unipub-menu.</p>' +
-      '<div class="field"><label>GitHub token</label><input id="ghToken" type="password" autocomplete="off" placeholder="github_pat_…" value="' + escapeHtml(gh.token) + '"></div>' +
-      '<div class="field"><label>Owner</label><input id="ghOwner" value="' + escapeHtml(gh.owner) + '"></div>' +
-      '<div class="field"><label>Repo</label><input id="ghRepo" value="' + escapeHtml(gh.repo) + '"></div>' +
-      '<div class="field"><label>Branch</label><input id="ghBranch" value="' + escapeHtml(gh.branch) + '"></div>' +
-      '<div class="field"><label>Путь файла</label><input id="ghPath" value="' + escapeHtml(gh.path) + '"></div>' +
-      '<label class="switch"><input type="checkbox" id="ghAuto"' + (gh.autoPush ? " checked" : "") + '><span>Автопуш при каждом сохранении</span></label>' +
-      '<button type="button" class="btn btn--primary btn--block" id="saveGh" style="margin-top:0.75rem">Сохранить настройки GitHub</button>' +
-      '<button type="button" class="btn btn--ghost btn--block" id="pushNow" style="margin-top:0.45rem">Пушнуть сейчас</button>' +
+      '<p class="card__title">Render → GitHub</p>' +
+      '<p class="card__meta" style="margin-bottom:0.75rem">' +
+      (me.githubReady ? "Token на сервере OK · " + escapeHtml(me.repo || "") : "На Render задай GITHUB_TOKEN") +
+      "</p>" +
+      '<label class="switch"><input type="checkbox" id="ghAuto"' + (auto ? " checked" : "") + '><span>Автопуш при каждом сохранении</span></label>' +
+      '<button type="button" class="btn btn--primary btn--block" id="pushNow" style="margin-top:0.75rem">Пушнуть сейчас</button>' +
+      '<a class="btn btn--ghost btn--block" href="' + escapeHtml(state.menuUrl) + '" target="_blank" rel="noopener" style="margin-top:0.45rem;text-align:center;text-decoration:none;display:block">Открыть меню гостей</a>' +
       "</div>" +
       '<div class="card" style="margin-top:0.75rem">' +
       '<p class="card__title">Правила (RU)</p>' +
@@ -511,20 +450,16 @@
       '<button type="button" class="btn btn--ghost btn--block" id="savePq">Сохранить запросы</button>' +
       "</div>" +
       '<div class="card" style="margin-top:0.75rem">' +
-      '<p class="card__title">Публикация</p>' +
-      '<p class="card__meta" style="margin-bottom:0.75rem">Сейчас: ' + (live ? "live-данные на этом телефоне" : "базовый menu-data.js") +
-      (gh.token ? (gh.autoPush ? " · автопуш вкл" : " · автопуш выкл") : " · token не задан") + "</p>" +
+      '<p class="card__title">Экспорт</p>' +
       '<button type="button" class="btn btn--ghost btn--block" id="exportJs">Скачать menu-data.js</button>' +
       '<button type="button" class="btn btn--ghost btn--block" id="exportJson" style="margin-top:0.45rem">Скачать JSON</button>' +
       '<button type="button" class="btn btn--ghost btn--block" id="importJson" style="margin-top:0.45rem">Импорт JSON</button>' +
       '<input id="importFile" type="file" accept="application/json,.json" hidden>' +
-      '<button type="button" class="btn btn--danger btn--block" id="clearLive" style="margin-top:0.45rem">Сбросить live-данные</button>' +
       "</div>" +
       '<div class="card" style="margin-top:0.75rem">' +
-      '<p class="card__title">Безопасность</p>' +
-      '<div class="field"><label>Новый PIN</label><input id="newPin" type="password" inputmode="numeric" maxlength="12" placeholder="••••"></div>' +
-      '<button type="button" class="btn btn--ghost btn--block" id="savePin">Сменить PIN</button>' +
-      '<button type="button" class="btn btn--ghost btn--block" id="logout" style="margin-top:0.45rem">Выйти</button>' +
+      '<p class="card__title">Сессия</p>' +
+      '<p class="card__meta" style="margin-bottom:0.75rem">PIN меняется в Render → Environment → ADMIN_PIN</p>' +
+      '<button type="button" class="btn btn--ghost btn--block" id="logout">Выйти</button>' +
       "</div>";
   }
 
@@ -685,8 +620,7 @@
 
     $("btnSave").addEventListener("click", function () { persist(false); });
     $("btnPreview").addEventListener("click", function () {
-      persist(true);
-      window.open("./index.html", "_blank");
+      window.open(state.menuUrl || "./index.html", "_blank");
     });
 
     $("sheetBackdrop").addEventListener("click", closeSheet);
@@ -771,46 +705,21 @@
         return;
       }
       if (e.target.id === "importJson") return $("importFile").click();
-      if (e.target.id === "saveGh") {
-        setGhConfig({
-          owner: $("ghOwner").value.trim() || DEFAULT_GH.owner,
-          repo: $("ghRepo").value.trim() || DEFAULT_GH.repo,
-          branch: $("ghBranch").value.trim() || DEFAULT_GH.branch,
-          path: $("ghPath").value.trim() || DEFAULT_GH.path,
-          token: $("ghToken").value.trim(),
-          autoPush: $("ghAuto").checked
-        });
-        toast("GitHub настройки сохранены");
-        render();
-        return;
-      }
-      if (e.target.id === "pushNow") {
-        persist(true);
-        pushToGithub({ silent: false, message: "Admin: manual publish" });
-        return;
-      }
-      if (e.target.id === "clearLive") {
-        try { localStorage.removeItem(LIVE_KEY); } catch (err) {}
-        state.data = ensureShape(window.UNIPUB_DATA);
-        toast("Live сброшен");
-        render();
-        return;
-      }
-      if (e.target.id === "savePin") {
-        var pin = $("newPin").value.trim();
-        if (pin.length < 4) return toast("PIN от 4 символов");
-        setPin(pin);
-        $("newPin").value = "";
-        toast("PIN обновлён");
-        return;
-      }
+      if (e.target.id === "pushNow") return publishNow();
       if (e.target.id === "logout") {
-        setAuthed(false);
+        api("/api/logout", { method: "POST" }).catch(function () {});
+        setToken("");
         location.reload();
+        return;
       }
     });
 
     $("content").addEventListener("change", function (e) {
+      if (e.target.id === "ghAuto") {
+        setAutoPush(e.target.checked);
+        toast(e.target.checked ? "Автопуш вкл" : "Автопуш выкл");
+        return;
+      }
       if (e.target.id !== "importFile" || !e.target.files || !e.target.files[0]) return;
       var file = e.target.files[0];
       var reader = new FileReader();
@@ -819,7 +728,6 @@
           state.data = ensureShape(JSON.parse(reader.result));
           persist(false);
           render();
-          toast("Импорт готов");
         } catch (err) {
           toast("Битый JSON");
         }
@@ -924,25 +832,48 @@
 
   function tryLogin() {
     var pin = $("pinInput").value.trim();
-    if (pin === getPin()) {
-      setAuthed(true);
-      enterApp();
-    } else {
-      $("pinErr").hidden = false;
-    }
+    $("pinErr").hidden = true;
+    api("/api/login", { method: "POST", body: { pin: pin } })
+      .then(function (res) {
+        setToken(res.token);
+        if (res.menuUrl) state.menuUrl = res.menuUrl;
+        return enterApp();
+      })
+      .catch(function () {
+        $("pinErr").hidden = false;
+      });
   }
 
   function enterApp() {
     $("gate").hidden = true;
     $("app").hidden = false;
-    state.data = loadData();
-    render();
+    return Promise.all([
+      api("/api/me"),
+      api("/api/data")
+    ])
+      .then(function (pair) {
+        state.me = pair[0];
+        if (pair[0].menuUrl) state.menuUrl = pair[0].menuUrl;
+        state.data = ensureShape(pair[1].data);
+        render();
+      })
+      .catch(function (err) {
+        if (err && err.status === 401) {
+          setToken("");
+          $("gate").hidden = false;
+          $("app").hidden = true;
+          return;
+        }
+        toast("Не удалось загрузить данные");
+        state.data = ensureShape(window.UNIPUB_DATA || { items: [] });
+        render();
+      });
   }
 
   function boot() {
     initStarfield();
     bind();
-    if (isAuthed()) enterApp();
+    if (getToken()) enterApp();
     else $("pinInput").focus();
   }
 
