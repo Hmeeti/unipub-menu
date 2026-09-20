@@ -52,12 +52,39 @@
   }
 
   function showToast(msg) {
+    if (!els.toast) return;
     els.toast.textContent = msg;
     els.toast.classList.add("is-on");
     window.clearTimeout(state.toastTimer);
     state.toastTimer = window.setTimeout(function () {
-      els.toast.classList.remove("is-on");
+      if (els.toast) els.toast.classList.remove("is-on");
     }, 2600);
+  }
+
+  function debounce(fn, wait) {
+    var timer = null;
+    return function () {
+      var ctx = this;
+      var args = arguments;
+      window.clearTimeout(timer);
+      timer = window.setTimeout(function () {
+        fn.apply(ctx, args);
+      }, wait);
+    };
+  }
+
+  function throttleRaf(fn) {
+    var scheduled = false;
+    var lastArgs = null;
+    return function () {
+      lastArgs = arguments;
+      if (scheduled) return;
+      scheduled = true;
+      window.requestAnimationFrame(function () {
+        scheduled = false;
+        fn.apply(null, lastArgs);
+      });
+    };
   }
 
   function getRecent() {
@@ -339,7 +366,7 @@
       "<p>" + UnipubSearch.escapeHtml(UnipubI18n.t("empty")) + "</p>" +
       '<div class="empty__hints">' +
       queries.map(function (q) {
-        return '<button type="button" data-suggest="' + UnipubSearch.escapeHtml(q) + '">' + UnipubSearch.escapeHtml(q) + "</button>";
+        return '<button type="button" class="suggest" data-suggest="' + UnipubSearch.escapeHtml(q) + '">' + UnipubSearch.escapeHtml(q) + "</button>";
       }).join("") +
       "</div>";
   }
@@ -352,7 +379,7 @@
     }
     els.recent.classList.add("is-on");
     els.recent.innerHTML =
-      "<h3>" + UnipubSearch.escapeHtml(UnipubI18n.t("recent")) + "</h3>" +
+      '<h3 class="recent__title">' + UnipubSearch.escapeHtml(UnipubI18n.t("recent")) + "</h3>" +
       '<div class="recent__row">' +
       ids.map(function (id) {
         var item = state.itemsById[id];
@@ -433,10 +460,21 @@
   function loadCart() {
     try {
       var raw = JSON.parse(localStorage.getItem(STORAGE.cart) || "{}");
-      state.cart = raw && typeof raw === "object" ? raw : {};
+      state.cart = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
     } catch (e) {
       state.cart = {};
     }
+  }
+
+  function sanitizeCart() {
+    var next = {};
+    Object.keys(state.cart || {}).forEach(function (id) {
+      if (!state.itemsById[id]) return;
+      var qty = Math.max(0, Math.min(99, Number(state.cart[id]) || 0));
+      if (qty > 0) next[id] = qty;
+    });
+    state.cart = next;
+    saveCart();
   }
 
   function saveCart() {
@@ -538,6 +576,16 @@
         service: service,
         total: sub + service
       };
+    }).map(function (part, index, arr) {
+      // добиваем копейки округления, чтобы сумма долей = итогу корзины
+      if (index !== arr.length - 1) return part;
+      var sumParts = arr.reduce(function (s, row) { return s + row.total; }, 0);
+      var diff = cartGrandTotal() - sumParts;
+      if (diff) {
+        part.total += diff;
+        part.sub += diff;
+      }
+      return part;
     });
   }
 
@@ -582,9 +630,14 @@
   function renameSplitPerson(personId, name) {
     var next = String(name || "").trim().slice(0, 18);
     if (!next) return;
+    var changed = false;
     state.splitPeople.forEach(function (p) {
-      if (p.id === personId) p.name = next;
+      if (p.id === personId && p.name !== next) {
+        p.name = next;
+        changed = true;
+      }
     });
+    if (!changed) return;
     saveSplit();
     renderBasket();
   }
@@ -659,7 +712,16 @@
       var item = state.itemsById[id];
       var qty = Number(state.cart[id]) || 0;
       if (!item || qty <= 0) return;
-      lines.push(qty + "× " + UnipubI18n.localized(item.name) + " — " + money(item.price * qty));
+      var who = "";
+      if (state.splitOn) {
+        var owner = getItemOwner(id);
+        if (owner === SHARED_ID) who = " [" + UnipubI18n.t("splitShared") + "]";
+        else {
+          var person = state.splitPeople.filter(function (p) { return p.id === owner; })[0];
+          if (person) who = " [" + person.name + "]";
+        }
+      }
+      lines.push(qty + "× " + UnipubI18n.localized(item.name) + " — " + money(item.price * qty) + who);
     });
 
     var table = getTable() || "—";
@@ -667,7 +729,7 @@
     var service = cartService();
     var total = cartGrandTotal();
 
-    return [
+    var out = [
       "UNIPUB — заказ",
       "Стол: " + table,
       "Официант: " + waiterName,
@@ -677,7 +739,16 @@
       UnipubI18n.t("basketSub") + ": " + money(sub),
       UnipubI18n.t("basketService") + ": " + money(service),
       UnipubI18n.t("basketTotal") + ": " + money(total)
-    ].join("\n");
+    ];
+
+    if (state.splitOn && state.splitPeople.length) {
+      out.push("", UnipubI18n.t("splitByPerson") + ":");
+      calcSplit().forEach(function (part) {
+        out.push(part.name + " — " + money(part.total));
+      });
+    }
+
+    return out.join("\n");
   }
 
   function requireTableAndCart() {
@@ -877,6 +948,13 @@
     applyFilters();
     els.rulesPanel.classList.remove("is-on");
     setDock("home");
+
+    if (state.category !== "all") {
+      var section = document.getElementById("section-" + state.category);
+      if (section && section.style.display !== "none") {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
   }
 
   function setDock(action) {
@@ -924,8 +1002,9 @@
   }
 
   function setTxOverlay(on, text) {
+    if (!els.txOverlay) return;
     els.txOverlay.hidden = !on;
-    if (text) els.txOverlayText.textContent = text;
+    if (text && els.txOverlayText) els.txOverlayText.textContent = text;
   }
 
   function applyWorldLanguage(code) {
@@ -1010,11 +1089,11 @@
       applyFilters();
     });
 
-    els.search.addEventListener("input", function () {
+    els.search.addEventListener("input", debounce(function () {
       state.query = UnipubSearch.fold(els.search.value).slice(0, 80);
       els.searchClear.classList.toggle("is-on", Boolean(state.query));
       applyFilters();
-    });
+    }, 140));
 
     els.searchClear.addEventListener("click", function () {
       els.search.value = "";
@@ -1040,6 +1119,9 @@
         return;
       }
 
+      // Не открываем модалку из кликов вне меню (корзина/док/модалки)
+      if (!e.target.closest("#menuRoot") && !e.target.closest("#recent")) return;
+
       var card = e.target.closest(".card");
       if (card && !e.target.closest(".card__btn")) {
         openModal(card.getAttribute("data-id"));
@@ -1061,11 +1143,19 @@
 
     document.addEventListener("keydown", function (e) {
       if (e.key !== "Escape") return;
-      if (!els.langModal.hidden) {
+      if (els.langModal && !els.langModal.hidden) {
         closeLangModal();
         return;
       }
-      if (els.modal.classList.contains("is-on")) closeModal();
+      if (els.modal && els.modal.classList.contains("is-on")) {
+        closeModal();
+        return;
+      }
+      if (state.basketOpen) {
+        state.basketOpen = false;
+        state.waitersOpen = false;
+        renderBasket();
+      }
     });
 
     els.themeBtn.addEventListener("click", function () {
@@ -1111,6 +1201,12 @@
         if (!input) return;
         renameSplitPerson(input.getAttribute("data-rename"), input.value);
       });
+      // iOS иногда не шлёт change — дублируем на blur
+      els.basketSplitPeople.addEventListener("focusout", function (e) {
+        var input = e.target.closest("[data-rename]");
+        if (!input) return;
+        renameSplitPerson(input.getAttribute("data-rename"), input.value);
+      });
     }
 
     els.basketWaitersGrid.addEventListener("click", function (e) {
@@ -1141,72 +1237,83 @@
       setItemOwner(select.getAttribute("data-split-item"), select.value);
     });
 
-    els.langOpenBtn.addEventListener("click", openLangModal);
-    els.langCloseBtn.addEventListener("click", closeLangModal);
-    els.langModal.addEventListener("click", function (e) {
-      if (e.target === els.langModal) closeLangModal();
-    });
-    els.langSearch.addEventListener("input", function () {
-      renderLangList(els.langSearch.value);
-    });
-    els.langList.addEventListener("click", function (e) {
-      var btn = e.target.closest("[data-world-lang]");
-      if (!btn) return;
-      applyWorldLanguage(btn.getAttribute("data-world-lang"));
-    });
+    els.langOpenBtn && els.langOpenBtn.addEventListener("click", openLangModal);
+    els.langCloseBtn && els.langCloseBtn.addEventListener("click", closeLangModal);
+    if (els.langModal) {
+      els.langModal.addEventListener("click", function (e) {
+        if (e.target === els.langModal) closeLangModal();
+      });
+    }
+    if (els.langSearch) {
+      els.langSearch.addEventListener("input", debounce(function () {
+        renderLangList(els.langSearch.value);
+      }, 100));
+    }
+    if (els.langList) {
+      els.langList.addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-world-lang]");
+        if (!btn) return;
+        applyWorldLanguage(btn.getAttribute("data-world-lang"));
+      });
+    }
 
-    $("dock").addEventListener("click", function (e) {
-      var btn = e.target.closest(".dock__btn");
-      if (!btn) return;
-      var action = btn.getAttribute("data-action");
+    var dock = $("dock");
+    if (dock) {
+      dock.addEventListener("click", function (e) {
+        var btn = e.target.closest(".dock__btn");
+        if (!btn) return;
+        var action = btn.getAttribute("data-action");
 
-      if (action === "home") {
-        els.rulesPanel.classList.remove("is-on");
-        setCategory("all");
-        $("top").scrollIntoView({ behavior: "smooth" });
-        return;
-      }
-      if (action === "categories") {
-        els.rulesPanel.classList.remove("is-on");
-        setDock("categories");
-        $("stickyNav").scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
-      }
-      if (action === "rules") {
-        els.rulesPanel.classList.add("is-on");
-        setDock("rules");
-        els.rulesPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-        return;
-      }
-      if (action === "top") {
-        setDock("top");
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      }
-    });
+        if (action === "home") {
+          els.rulesPanel.classList.remove("is-on");
+          setCategory("all");
+          $("top").scrollIntoView({ behavior: "smooth" });
+          return;
+        }
+        if (action === "categories") {
+          els.rulesPanel.classList.remove("is-on");
+          setDock("categories");
+          $("stickyNav").scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+        if (action === "rules") {
+          els.rulesPanel.classList.add("is-on");
+          setDock("rules");
+          els.rulesPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+          return;
+        }
+        if (action === "top") {
+          setDock("top");
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+      });
+    }
 
-    window.addEventListener("scroll", function () {
+    window.addEventListener("scroll", throttleRaf(function () {
+      if (!els.progress) return;
       var max = document.documentElement.scrollHeight - window.innerHeight;
       var ratio = max > 0 ? (window.scrollY / max) * 100 : 0;
       els.progress.style.width = Math.min(100, Math.max(0, ratio)) + "%";
 
-      // Scroll-spy активной секции
       if (state.category !== "all" || state.query) return;
       var sections = Array.prototype.slice.call(document.querySelectorAll(".section-block"));
       var current = null;
-      sections.forEach(function (sec) {
+      for (var i = 0; i < sections.length; i += 1) {
+        var sec = sections[i];
+        if (sec.style.display === "none") continue;
         var rect = sec.getBoundingClientRect();
-        if (rect.top <= 140 && rect.bottom > 160) current = sec.getAttribute("data-section");
-      });
-      if (current) {
+        if (rect.top <= 140 && rect.bottom > 160) {
+          current = sec.getAttribute("data-section");
+          break;
+        }
+      }
+      if (current && els.tabs) {
         Array.prototype.slice.call(els.tabs.querySelectorAll(".tab")).forEach(function (tab) {
-          var active = tab.getAttribute("data-category") === current;
-          // Не переключаем state.category при spy — только визуальный hint через outline на секции
-          tab.classList.toggle("is-spy", active);
+          tab.classList.toggle("is-spy", tab.getAttribute("data-category") === current);
         });
       }
-    }, { passive: true });
+    }), { passive: true });
 
-    // Deep-link #dish-id
     if (location.hash.indexOf("#dish-") === 0) {
       var dishId = location.hash.replace("#dish-", "");
       window.setTimeout(function () { openModal(dishId); }, 700);
@@ -1298,6 +1405,12 @@
     try {
       bindEvents();
     } catch (e) {}
+
+    // индекс блюд до sanitize/render
+    (data.items || []).forEach(function (item) {
+      if (item && item.id) state.itemsById[item.id] = item;
+    });
+    sanitizeCart();
 
     refreshAllViews();
     startSplash();

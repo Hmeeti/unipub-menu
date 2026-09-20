@@ -1,5 +1,5 @@
 /* Offline shell для меню UNIPUB */
-const CACHE = "unipub-v16";
+const CACHE = "unipub-v17";
 const ASSETS = [
   "./",
   "./index.html",
@@ -28,16 +28,37 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+function isDocumentRequest(req) {
+  if (req.mode === "navigate") return true;
+  const accept = req.headers.get("accept") || "";
+  return accept.includes("text/html");
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) {
-    // Переводчик и внешние API — только сеть, без SW-кэша
+    // Переводчик и внешние API — только сеть
     return;
   }
 
+  // HTML — сначала сеть, чтобы телефон не залипал на старой версии меню
+  if (isDocumentRequest(req)) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {});
+          return res;
+        })
+        .catch(() => caches.match(req).then((cached) => cached || caches.match("./index.html")))
+    );
+    return;
+  }
+
+  // Остальное: cache-first с обновлением в фоне
   event.respondWith(
     caches.match(req).then((cached) => {
       const fetched = fetch(req)
