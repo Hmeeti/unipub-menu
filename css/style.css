@@ -1192,7 +1192,7 @@ main { padding: 0.6rem 0 1.25rem; }
   flex-direction: column;
   align-items: flex-end;
   gap: 0.45rem;
-  max-width: min(340px, calc(100vw - 1.5rem));
+  max-width: min(360px, calc(100vw - 1.5rem));
   pointer-events: none;
 }
 
@@ -1232,8 +1232,8 @@ main { padding: 0.6rem 0 1.25rem; }
 
 .basket__panel {
   pointer-events: auto;
-  width: min(340px, calc(100vw - 1.5rem));
-  max-height: min(52vh, 420px);
+  width: min(360px, calc(100vw - 1.5rem));
+  max-height: min(78dvh, 640px);
   display: flex;
   flex-direction: column;
   border-radius: 18px;
@@ -1322,6 +1322,10 @@ main { padding: 0.6rem 0 1.25rem; }
 .basket__foot {
   padding: 0.7rem 0.85rem 0.85rem;
   border-top: 1px solid var(--line);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  max-height: min(52dvh, 420px);
+  flex-shrink: 0;
 }
 
 .basket__table {
@@ -1512,5 +1516,32 @@ main { padding: 0.6rem 0 1.25rem; }
 
   .card:active {
     transform: scale(0.985);
+  }
+}
+
+@media (max-width: 640px) {
+  .basket {
+    left: 0.55rem;
+    right: 0.55rem;
+    max-width: none;
+    align-items: stretch;
+  }
+
+  .basket__fab {
+    align-self: flex-end;
+  }
+
+  .basket__panel {
+    width: 100%;
+    max-width: none;
+    max-height: min(78dvh, 680px);
+  }
+
+  .basket__foot {
+    max-height: min(58dvh, 480px);
+  }
+
+  .basket__waiters-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }
