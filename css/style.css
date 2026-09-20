@@ -188,7 +188,7 @@ a:hover { color: var(--pink); }
   display: inline-flex;
   align-items: flex-end;
   justify-content: center;
-  font-family: var(--display);
+  font-family: var(--font);
   font-weight: 800;
   font-size: clamp(2.7rem, 11vw, 4.1rem);
   letter-spacing: -0.045em;
