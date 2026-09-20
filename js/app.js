@@ -112,7 +112,37 @@
 
   function startSplash() {
     // Заставка обязательная, без skip; чуть дольше для премиум-ощущения
-    window.setTimeout(hideSplash, 3200);
+    window.setTimeout(hideSplash, 2800);
+    // страховка на случай глюка таймера/вкладки
+    window.setTimeout(function () {
+      hideSplash();
+      setTxOverlay(false);
+    }, 6000);
+  }
+
+  function withTimeout(promise, ms) {
+    return new Promise(function (resolve, reject) {
+      var done = false;
+      var timer = setTimeout(function () {
+        if (done) return;
+        done = true;
+        reject(new Error("timeout"));
+      }, ms);
+      Promise.resolve(promise).then(
+        function (value) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          resolve(value);
+        },
+        function (err) {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          reject(err);
+        }
+      );
+    });
   }
 
   function renderHeaderContacts() {
@@ -675,7 +705,7 @@
     }
 
     setTxOverlay(true, UnipubI18n.t("toastTranslating"));
-    UnipubTranslate.prepare(state.data, UnipubI18n.UI.ru, code)
+    withTimeout(UnipubTranslate.prepare(state.data, UnipubI18n.UI.ru, code), 16000)
       .then(function (result) {
         UnipubI18n.setWorldLang(code, result.map);
         refreshAllViews();
@@ -691,22 +721,22 @@
       });
   }
 
-  function restoreWorldLanguageOnBoot() {
-    var code = UnipubI18n.getWorldCode();
+  function restoreWorldLanguageOnBoot(preferredCode) {
+    var code = preferredCode || UnipubI18n.getWorldCode();
     if (!code || UnipubTranslate.isNative(code)) {
       UnipubI18n.setWorldLang(code || "ru", null);
-      return Promise.resolve();
+      return Promise.resolve(false);
     }
-    setTxOverlay(true, UnipubI18n.t("toastTranslating"));
-    return UnipubTranslate.prepare(state.data, UnipubI18n.UI.ru, code)
+
+    // Не блокируем экран при старте: меню уже на русском, перевод догоняет в фоне
+    return withTimeout(UnipubTranslate.prepare(state.data, UnipubI18n.UI.ru, code), 16000)
       .then(function (result) {
         UnipubI18n.setWorldLang(code, result.map);
+        return true;
       })
       .catch(function () {
         UnipubI18n.setWorldLang("ru", null);
-      })
-      .then(function () {
-        setTxOverlay(false);
+        return false;
       });
   }
 
@@ -990,12 +1020,27 @@
       setTheme("dark");
     }
 
-    bindEvents();
+    // Сначала всегда показываем меню (нативный язык / русский), без ожидания сети
+    var savedWorld = UnipubI18n.getWorldCode();
+    if (!UnipubTranslate.isNative(savedWorld)) {
+      UnipubI18n.setWorldLang("ru", null);
+    } else {
+      UnipubI18n.setWorldLang(savedWorld || "ru", null);
+    }
+
+    try {
+      bindEvents();
+    } catch (e) {}
+
+    refreshAllViews();
     startSplash();
 
-    restoreWorldLanguageOnBoot().then(function () {
-      refreshAllViews();
-    });
+    // Фоновый догон перевода, если ранее выбрали мировой язык
+    if (savedWorld && !UnipubTranslate.isNative(savedWorld)) {
+      restoreWorldLanguageOnBoot(savedWorld).then(function (ok) {
+        if (ok) refreshAllViews();
+      });
+    }
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("./sw.js").catch(function () {});

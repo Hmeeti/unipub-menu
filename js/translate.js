@@ -73,14 +73,32 @@
       "&dt=t&q=" +
       encodeURIComponent(joined);
 
-    return fetch(url)
+    var ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+    var timer = null;
+    if (ctrl) {
+      timer = setTimeout(function () {
+        try { ctrl.abort(); } catch (e) {}
+      }, 7000);
+    }
+
+    return fetch(url, ctrl ? { signal: ctrl.signal } : undefined)
       .then(function (res) {
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
       })
       .then(function (data) {
         return parseGtx(data, joined);
-      });
+      })
+      .then(
+        function (out) {
+          if (timer) clearTimeout(timer);
+          return out;
+        },
+        function (err) {
+          if (timer) clearTimeout(timer);
+          throw err;
+        }
+      );
   }
 
   /**
@@ -268,9 +286,18 @@
     }
 
     var texts = collectMenuStrings(data).concat(collectUiStrings(uiRu));
-    return translateMany(texts, targetLang, "ru").then(function (map) {
+    var work = translateMany(texts, targetLang, "ru").then(function (map) {
       return { map: map, pack: null };
     });
+
+    // Жёсткий потолок: телефон не должен висеть на переводе вечно
+    var timed = new Promise(function (resolve, reject) {
+      setTimeout(function () {
+        reject(new Error("translate-timeout"));
+      }, 18000);
+    });
+
+    return Promise.race([work, timed]);
   }
 
   function applyMap(text, map) {
