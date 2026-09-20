@@ -5,7 +5,6 @@
   "use strict";
 
   var AUTH_KEY = "unipub:admin-token";
-  var AUTO_KEY = "unipub:auto-push";
   var API = String(window.UNIPUB_API || "").replace(/\/$/, "");
 
   var FLAG_OPTS = [
@@ -84,16 +83,10 @@
   }
 
   function autoPushOn() {
-    try {
-      var v = localStorage.getItem(AUTO_KEY);
-      if (v === null) return true;
-      return v === "1";
-    } catch (e) { return true; }
+    return true;
   }
 
-  function setAutoPush(on) {
-    try { localStorage.setItem(AUTO_KEY, on ? "1" : "0"); } catch (e) {}
-  }
+  function setAutoPush() {}
 
   function api(path, opts) {
     opts = opts || {};
@@ -417,20 +410,15 @@
   }
 
   function renderSystem() {
-    var me = state.me || {};
-    var auto = autoPushOn();
     $("content").innerHTML =
       '<div class="stat-grid">' +
       '<div class="stat"><strong>' + state.data.items.length + "</strong><span>Блюд</span></div>" +
       '<div class="stat"><strong>' + state.data.categories.length + "</strong><span>Категорий</span></div>" +
       "</div>" +
       '<div class="card">' +
-      '<p class="card__title">Render → GitHub</p>' +
-      '<p class="card__meta" style="margin-bottom:0.75rem">' +
-      (me.githubReady ? "Token на сервере OK · " + escapeHtml(me.repo || "") : "На Render задай GITHUB_TOKEN") +
-      "</p>" +
-      '<label class="switch"><input type="checkbox" id="ghAuto"' + (auto ? " checked" : "") + '><span>Автопуш при каждом сохранении</span></label>' +
-      '<button type="button" class="btn btn--primary btn--block" id="pushNow" style="margin-top:0.75rem">Пушнуть сейчас</button>' +
+      '<p class="card__title">Публикация</p>' +
+      '<p class="card__meta" style="margin-bottom:0.75rem">Сохранение само заливает меню на сайт</p>' +
+      '<button type="button" class="btn btn--primary btn--block" id="pushNow">Опубликовать сейчас</button>' +
       '<a class="btn btn--ghost btn--block" href="' + escapeHtml(state.menuUrl) + '" target="_blank" rel="noopener" style="margin-top:0.45rem;text-align:center;text-decoration:none;display:block">Открыть меню гостей</a>' +
       "</div>" +
       '<div class="card" style="margin-top:0.75rem">' +
@@ -450,15 +438,6 @@
       '<button type="button" class="btn btn--ghost btn--block" id="savePq">Сохранить запросы</button>' +
       "</div>" +
       '<div class="card" style="margin-top:0.75rem">' +
-      '<p class="card__title">Экспорт</p>' +
-      '<button type="button" class="btn btn--ghost btn--block" id="exportJs">Скачать menu-data.js</button>' +
-      '<button type="button" class="btn btn--ghost btn--block" id="exportJson" style="margin-top:0.45rem">Скачать JSON</button>' +
-      '<button type="button" class="btn btn--ghost btn--block" id="importJson" style="margin-top:0.45rem">Импорт JSON</button>' +
-      '<input id="importFile" type="file" accept="application/json,.json" hidden>' +
-      "</div>" +
-      '<div class="card" style="margin-top:0.75rem">' +
-      '<p class="card__title">Сессия</p>' +
-      '<p class="card__meta" style="margin-bottom:0.75rem">PIN меняется в Render → Environment → ADMIN_PIN</p>' +
       '<button type="button" class="btn btn--ghost btn--block" id="logout">Выйти</button>' +
       "</div>";
   }
@@ -715,11 +694,6 @@
     });
 
     $("content").addEventListener("change", function (e) {
-      if (e.target.id === "ghAuto") {
-        setAutoPush(e.target.checked);
-        toast(e.target.checked ? "Автопуш вкл" : "Автопуш выкл");
-        return;
-      }
       if (e.target.id !== "importFile" || !e.target.files || !e.target.files[0]) return;
       var file = e.target.files[0];
       var reader = new FileReader();
