@@ -15,11 +15,20 @@
   var SERVICE_RATE = 0.15;
 
   var WAITERS = [
+    { id: "ilnur", name: "Ильнур", phone: "77076678368", display: "+7 707 667 8368" },
     { id: "eleanora", name: "Элеанора", phone: "77771172605", display: "+7 777 117 2605" },
     { id: "ekaterina", name: "Екатерина", phone: "77056522248", display: "+7 705 652 2248" },
     { id: "marina", name: "Марина", phone: "77055705732", display: "+7 705 570 5732" },
     { id: "anastasia", name: "Анастасия", phone: "77085887959", display: "+7 708 588 7959" }
   ];
+
+  // Пока проверка оплаты идёт через Ильнура (Kaspi + WhatsApp)
+  var PAYMENT = {
+    checkerId: "ilnur",
+    kaspiPhone: "77076678368",
+    kaspiDisplay: "+7 707 667 8368",
+    kaspiName: "Ильнур · UNIPUB"
+  };
 
   var state = {
     data: null,
@@ -31,7 +40,8 @@
     activeDishId: null,
     cart: {},
     basketOpen: false,
-    waitersOpen: false
+    waitersOpen: false,
+    payOpen: false
   };
 
   var els = {};
@@ -493,12 +503,30 @@
   function clearCart() {
     state.cart = {};
     state.waitersOpen = false;
+    state.payOpen = false;
     saveCart();
     state.basketOpen = false;
     renderBasket();
   }
 
-  function buildOrderText(waiterName) {
+  function paymentComment() {
+    return "UNIPUB стол " + (getTable() || "—");
+  }
+
+  function copyText(text, okMsg) {
+    var value = String(text || "");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(value).then(function () {
+        showToast(okMsg || UnipubI18n.t("toastCopied"));
+      }).catch(function () {
+        showToast(value);
+      });
+      return;
+    }
+    showToast(value);
+  }
+
+  function buildOrderText(waiterName, paid) {
     var lines = [];
     Object.keys(state.cart).forEach(function (id) {
       var item = state.itemsById[id];
@@ -512,30 +540,63 @@
     var service = cartService();
     var total = cartGrandTotal();
 
-    return [
-      "UNIPUB — заказ",
+    var head = paid
+      ? ["UNIPUB — ОПЛАТА Kaspi (проверить)", "Проверка: Ильнур"]
+      : ["UNIPUB — заказ"];
+
+    return head.concat([
       "Стол: " + table,
       "Официант: " + waiterName,
+      paid ? ("Комментарий Kaspi: " + paymentComment()) : "",
       "",
       lines.join("\n"),
       "",
       UnipubI18n.t("basketSub") + ": " + money(sub),
       UnipubI18n.t("basketService") + ": " + money(service),
-      UnipubI18n.t("basketTotal") + ": " + money(total)
-    ].join("\n");
+      UnipubI18n.t("basketTotal") + ": " + money(total),
+      paid ? ("\n✅ Гость отметил: оплатил " + money(total) + " на " + PAYMENT.kaspiDisplay) : ""
+    ]).filter(function (line) { return line !== ""; }).join("\n");
   }
 
-  function showWaitersPicker() {
+  function requireTableAndCart() {
     if (!cartCount()) {
       showToast(UnipubI18n.t("basketEmpty"));
-      return;
+      return false;
     }
     if (!getTable()) {
       showToast(UnipubI18n.t("toastNeedTable"));
       if (els.basketTable) els.basketTable.focus();
-      return;
+      return false;
     }
+    return true;
+  }
+
+  function showWaitersPicker() {
+    if (!requireTableAndCart()) return;
+    state.payOpen = false;
     state.waitersOpen = true;
+    renderBasket();
+  }
+
+  function showPayPanel() {
+    if (!requireTableAndCart()) return;
+    state.waitersOpen = false;
+    state.payOpen = true;
+    renderBasket();
+  }
+
+  function openKaspiApp() {
+    window.open("https://kaspi.kz/pay", "_blank", "noopener");
+    showToast(UnipubI18n.t("toastKaspiOpen"));
+  }
+
+  function sendPaymentForCheck() {
+    if (!requireTableAndCart()) return;
+    var checker = WAITERS.filter(function (w) { return w.id === PAYMENT.checkerId; })[0] || WAITERS[0];
+    var text = buildOrderText(checker.name, true);
+    window.open(whatsappUrl(text, checker.phone), "_blank", "noopener");
+    showToast(UnipubI18n.t("toastPaySent") + " " + checker.name);
+    state.payOpen = false;
     renderBasket();
   }
 
@@ -545,7 +606,7 @@
       showToast(UnipubI18n.t("toastNeedTable"));
       return;
     }
-    var text = buildOrderText(waiter.name);
+    var text = buildOrderText(waiter.name, false);
     window.open(whatsappUrl(text, waiter.phone), "_blank", "noopener");
     showToast(UnipubI18n.t("toastSentTo") + " " + waiter.name);
     state.waitersOpen = false;
@@ -568,6 +629,7 @@
       els.basketPanel.hidden = true;
       state.basketOpen = false;
       state.waitersOpen = false;
+      state.payOpen = false;
       return;
     }
 
@@ -579,11 +641,28 @@
     els.basketTotalLabel.textContent = UnipubI18n.t("basketTotal");
     els.basketClear.textContent = UnipubI18n.t("basketClear");
     els.basketSend.textContent = UnipubI18n.t("basketChooseWaiter");
+    if (els.basketPay) els.basketPay.textContent = UnipubI18n.t("basketPay");
     els.basketSubtotal.textContent = money(sub);
     els.basketService.textContent = money(service);
     els.basketTotal.textContent = money(total);
     els.basketWaitersTitle.textContent = UnipubI18n.t("basketWaitersTitle");
     els.basketWaiters.hidden = !state.waitersOpen;
+
+    if (els.basketPayPanel) {
+      els.basketPayPanel.hidden = !state.payOpen;
+      if (els.basketPayTitle) els.basketPayTitle.textContent = UnipubI18n.t("payTitle");
+      if (els.basketPayHint) els.basketPayHint.textContent = UnipubI18n.t("payHint");
+      if (els.basketPayAmountLabel) els.basketPayAmountLabel.textContent = UnipubI18n.t("payAmount");
+      if (els.basketPayAmount) els.basketPayAmount.textContent = money(total);
+      if (els.basketPayPhoneLabel) els.basketPayPhoneLabel.textContent = UnipubI18n.t("payPhone");
+      if (els.basketPayPhone) els.basketPayPhone.textContent = PAYMENT.kaspiDisplay;
+      if (els.basketPayCommentLabel) els.basketPayCommentLabel.textContent = UnipubI18n.t("payComment");
+      if (els.basketPayComment) els.basketPayComment.textContent = paymentComment();
+      if (els.basketPayCopyAmount) els.basketPayCopyAmount.textContent = UnipubI18n.t("payCopyAmount");
+      if (els.basketPayCopyPhone) els.basketPayCopyPhone.textContent = UnipubI18n.t("payCopyPhone");
+      if (els.basketPayOpenKaspi) els.basketPayOpenKaspi.textContent = UnipubI18n.t("payOpenKaspi");
+      if (els.basketPayConfirm) els.basketPayConfirm.textContent = UnipubI18n.t("payConfirm");
+    }
 
     els.basketWaitersGrid.innerHTML = WAITERS.map(function (w) {
       return (
@@ -840,21 +919,43 @@
 
     els.basketFab.addEventListener("click", function () {
       state.basketOpen = !state.basketOpen;
-      if (!state.basketOpen) state.waitersOpen = false;
+      if (!state.basketOpen) {
+        state.waitersOpen = false;
+        state.payOpen = false;
+      }
       renderBasket();
     });
 
     els.basketClose.addEventListener("click", function () {
       state.basketOpen = false;
       state.waitersOpen = false;
+      state.payOpen = false;
       renderBasket();
     });
 
     els.basketClear.addEventListener("click", clearCart);
     els.basketSend.addEventListener("click", showWaitersPicker);
+    if (els.basketPay) els.basketPay.addEventListener("click", showPayPanel);
 
     if (els.basketTable) {
       els.basketTable.addEventListener("input", saveTable);
+    }
+
+    if (els.basketPayCopyAmount) {
+      els.basketPayCopyAmount.addEventListener("click", function () {
+        copyText(String(cartGrandTotal()), UnipubI18n.t("toastCopiedAmount"));
+      });
+    }
+    if (els.basketPayCopyPhone) {
+      els.basketPayCopyPhone.addEventListener("click", function () {
+        copyText(PAYMENT.kaspiPhone, UnipubI18n.t("toastCopiedPhone"));
+      });
+    }
+    if (els.basketPayOpenKaspi) {
+      els.basketPayOpenKaspi.addEventListener("click", openKaspiApp);
+    }
+    if (els.basketPayConfirm) {
+      els.basketPayConfirm.addEventListener("click", sendPaymentForCheck);
     }
 
     els.basketWaitersGrid.addEventListener("click", function (e) {
@@ -994,6 +1095,20 @@
       basketWaiters: $("basketWaiters"),
       basketWaitersTitle: $("basketWaitersTitle"),
       basketWaitersGrid: $("basketWaitersGrid"),
+      basketPay: $("basketPay"),
+      basketPayPanel: $("basketPayPanel"),
+      basketPayTitle: $("basketPayTitle"),
+      basketPayHint: $("basketPayHint"),
+      basketPayAmountLabel: $("basketPayAmountLabel"),
+      basketPayAmount: $("basketPayAmount"),
+      basketPayPhoneLabel: $("basketPayPhoneLabel"),
+      basketPayPhone: $("basketPayPhone"),
+      basketPayCommentLabel: $("basketPayCommentLabel"),
+      basketPayComment: $("basketPayComment"),
+      basketPayCopyAmount: $("basketPayCopyAmount"),
+      basketPayCopyPhone: $("basketPayCopyPhone"),
+      basketPayOpenKaspi: $("basketPayOpenKaspi"),
+      basketPayConfirm: $("basketPayConfirm"),
       splashFee: $("splashFee"),
       langOpenBtn: $("langOpenBtn"),
       langModal: $("langModal"),
