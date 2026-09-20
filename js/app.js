@@ -548,6 +548,13 @@
     }
     saveSplit();
     renderBasket();
+    if (state.splitOn) {
+      window.setTimeout(function () {
+        if (els.basketSplitPanel) {
+          els.basketSplitPanel.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+      }, 40);
+    }
   }
 
   function addSplitPerson() {
@@ -734,6 +741,7 @@
     }
 
     els.basketPanel.hidden = !state.basketOpen;
+    els.basketPanel.classList.toggle("is-split", state.splitOn);
     els.basketTitle.textContent = UnipubI18n.t("basket");
     els.basketTableLabel.textContent = UnipubI18n.t("table");
     els.basketSubLabel.textContent = UnipubI18n.t("basketSub");
