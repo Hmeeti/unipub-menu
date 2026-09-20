@@ -1,5 +1,5 @@
 /* Offline shell для меню UNIPUB */
-const CACHE = "unipub-v13";
+const CACHE = "unipub-v14";
 const ASSETS = [
   "./",
   "./index.html",
