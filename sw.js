@@ -1,5 +1,5 @@
 /* Offline shell для меню UNIPUB */
-const CACHE = "unipub-v22";
+const CACHE = "unipub-v23";
 const ASSETS = [
   "./",
   "./index.html",
@@ -34,8 +34,46 @@ function isDocumentRequest(req) {
   return accept.includes("text/html");
 }
 
-function isMenuData(url) {
-  return /\/js\/menu-data\.js$/i.test(url.pathname);
+function isFreshAsset(url) {
+  const p = url.pathname;
+  return (
+    /\/js\/menu-data\.js$/i.test(p) ||
+    /\/js\/app\.js$/i.test(p) ||
+    /\/js\/i18n\.js$/i.test(p) ||
+    /\/js\/translate\.js$/i.test(p) ||
+    /\/js\/search\.js$/i.test(p) ||
+    /\/js\/languages\.js$/i.test(p) ||
+    /\/css\/style\.css$/i.test(p) ||
+    /\/sw\.js$/i.test(p)
+  );
+}
+
+function networkFirst(req, fallbackPath) {
+  return fetch(req)
+    .then((res) => {
+      const copy = res.clone();
+      caches.open(CACHE).then((cache) => {
+        cache.put(req, copy);
+        // также кладём без query — для offline match
+        try {
+          const u = new URL(req.url);
+          if (u.search) {
+            const clean = u.origin + u.pathname;
+            cache.put(clean, res.clone()).catch(() => {});
+          }
+        } catch (_) {}
+      }).catch(() => {});
+      return res;
+    })
+    .catch(() =>
+      caches.match(req).then((cached) => {
+        if (cached) return cached;
+        return caches.match(req, { ignoreSearch: true }).then((c2) => {
+          if (c2) return c2;
+          return fallbackPath ? caches.match(fallbackPath) : undefined;
+        });
+      })
+    );
 }
 
 self.addEventListener("fetch", (event) => {
@@ -43,27 +81,13 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
 
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) {
+  if (url.origin !== self.location.origin) return;
+
+  if (isDocumentRequest(req) || isFreshAsset(url)) {
+    event.respondWith(networkFirst(req, isDocumentRequest(req) ? "./index.html" : undefined));
     return;
   }
 
-  // HTML и menu-data — сначала сеть (админ-пуш должен быть виден сразу)
-  if (isDocumentRequest(req) || isMenuData(url)) {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {});
-          return res;
-        })
-        .catch(() =>
-          caches.match(req).then((cached) => cached || (isDocumentRequest(req) ? caches.match("./index.html") : undefined))
-        )
-    );
-    return;
-  }
-
-  // Остальное: cache-first с обновлением в фоне
   event.respondWith(
     caches.match(req).then((cached) => {
       const fetched = fetch(req)

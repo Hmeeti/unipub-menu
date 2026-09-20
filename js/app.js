@@ -26,6 +26,44 @@
   ];
 
   var WAITERS = DEFAULT_WAITERS.slice();
+  var langGen = 0;
+  var sectionEls = [];
+
+  var ALLERGEN_MAP = {
+    "глютен": { ru: "глютен", kz: "глютен", en: "gluten" },
+    "молоко": { ru: "молоко", kz: "сүт", en: "milk" },
+    "яйца": { ru: "яйца", kz: "жұмыртқа", en: "eggs" },
+    "рыба": { ru: "рыба", kz: "балық", en: "fish" },
+    "морепродукты": { ru: "морепродукты", kz: "теңіз өнімдері", en: "seafood" },
+    "орехи": { ru: "орехи", kz: "жаңғақ", en: "nuts" },
+    "арахис": { ru: "арахис", kz: "жержаңғақ", en: "peanuts" },
+    "соя": { ru: "соя", kz: "соя", en: "soy" },
+    "кунжут": { ru: "кунжут", kz: "кунжут", en: "sesame" },
+    "горчица": { ru: "горчица", kz: "қыша", en: "mustard" },
+    "сельдерей": { ru: "сельдерей", kz: "селдерей", en: "celery" },
+    "люпин": { ru: "люпин", kz: "люпин", en: "lupin" },
+    "моллюски": { ru: "моллюски", kz: "моллюскалар", en: "molluscs" },
+    "сульфиты": { ru: "сульфиты", kz: "сульфиттер", en: "sulphites" }
+  };
+
+  function servicePct() {
+    return Math.round(SERVICE_RATE * 100);
+  }
+
+  function serviceLabel() {
+    return UnipubI18n.t("basketService").replace(/15/g, String(servicePct()));
+  }
+
+  function splashServiceLabel() {
+    return UnipubI18n.t("serviceFeeSplash").replace(/15/g, String(servicePct()));
+  }
+
+  function allergenLabel(a) {
+    var key = String(a || "").trim().toLowerCase();
+    var mapped = ALLERGEN_MAP[key];
+    if (mapped) return UnipubI18n.localized(mapped);
+    return UnipubI18n.localized(a);
+  }
 
   function resolveMenuData() {
     return window.UNIPUB_DATA || null;
@@ -170,13 +208,16 @@
   }
 
   function startSplash() {
-    // Заставка обязательная, без skip; чуть дольше для премиум-ощущения
-    window.setTimeout(hideSplash, 2800);
-    // страховка на случай глюка таймера/вкладки
+    var ms = 2800;
+    try {
+      if (localStorage.getItem("unipub:seen-splash") === "1") ms = 900;
+      else localStorage.setItem("unipub:seen-splash", "1");
+    } catch (e) {}
+    window.setTimeout(hideSplash, ms);
     window.setTimeout(function () {
       hideSplash();
       setTxOverlay(false);
-    }, 6000);
+    }, Math.max(ms + 500, 4000));
   }
 
   function withTimeout(promise, ms) {
@@ -328,6 +369,7 @@
     });
 
     els.menuRoot.innerHTML = html.join("");
+    sectionEls = Array.prototype.slice.call(els.menuRoot.querySelectorAll(".section-block"));
 
     // Подставляем текст с возможной подсветкой + убираем skeleton после load
     Array.prototype.slice.call(els.menuRoot.querySelectorAll(".card")).forEach(function (card) {
@@ -456,7 +498,7 @@
       '<p class="modal__section-title">' + UnipubI18n.t("allergens") + "</p>" +
       ((item.allergens || []).length
         ? '<div class="allergens">' + item.allergens.map(function (a) {
-            return '<span class="allergen">' + UnipubSearch.escapeHtml(UnipubI18n.localized(a)) + "</span>";
+            return '<span class="allergen">' + UnipubSearch.escapeHtml(allergenLabel(a)) + "</span>";
           }).join("") + "</div>"
         : '<p class="modal__text">' + UnipubI18n.t("noAllergens") + "</p>") +
       '<div class="modal__actions">' +
@@ -467,18 +509,11 @@
 
     els.modal.classList.add("is-on");
     document.body.style.overflow = "hidden";
-
-    $("modalClose").addEventListener("click", closeModal);
-    $("btnOrder").addEventListener("click", function () { addToCart(item); });
-    $("btnWaiter").addEventListener("click", function () {
-      showToast(UnipubI18n.t("toastWaiter"));
-    });
-    $("btnShare").addEventListener("click", function () { shareDish(item); });
   }
 
   function closeModal() {
     els.modal.classList.remove("is-on");
-    document.body.style.overflow = "";
+    if (!state.basketOpen) document.body.style.overflow = "";
     state.activeDishId = null;
   }
 
@@ -565,7 +600,8 @@
   }
 
   /**
-   * Считает долю каждого человека: личные позиции + равная доля «Общего» + 15% сервиса.
+   * Считает долю каждого человека: личные позиции + равная доля «Общего» + сервис.
+   * Округление: сначала точные доли, потом копейки добиваем в service последнего.
    */
   function calcSplit() {
     ensureAssignments();
@@ -591,7 +627,7 @@
       }
     });
 
-    return state.splitPeople.map(function (p) {
+    var parts = state.splitPeople.map(function (p) {
       var sub = Math.round(buckets[p.id].sub);
       var service = Math.round(sub * SERVICE_RATE);
       return {
@@ -601,17 +637,16 @@
         service: service,
         total: sub + service
       };
-    }).map(function (part, index, arr) {
-      // добиваем копейки округления, чтобы сумма долей = итогу корзины
-      if (index !== arr.length - 1) return part;
-      var sumParts = arr.reduce(function (s, row) { return s + row.total; }, 0);
-      var diff = cartGrandTotal() - sumParts;
-      if (diff) {
-        part.total += diff;
-        part.sub += diff;
-      }
-      return part;
     });
+
+    var sumParts = parts.reduce(function (s, row) { return s + row.total; }, 0);
+    var diff = cartGrandTotal() - sumParts;
+    if (diff && parts.length) {
+      var last = parts[parts.length - 1];
+      last.service += diff;
+      last.total += diff;
+    }
+    return parts;
   }
 
   function toggleSplit() {
@@ -664,7 +699,24 @@
     });
     if (!changed) return;
     saveSplit();
-    renderBasket();
+    // Не пересобираем весь лист — только суммы (инпуты сохраняют фокус)
+    if (els.basketSplitSum) {
+      var parts = calcSplit();
+      els.basketSplitSum.innerHTML =
+        '<p class="split-sum__title">' + UnipubSearch.escapeHtml(UnipubI18n.t("splitByPerson")) + "</p>" +
+        parts.map(function (part) {
+          return (
+            '<div class="split-sum__row">' +
+            "<strong>" + UnipubSearch.escapeHtml(part.name) + "</strong>" +
+            "<span>" + money(part.total) + "</span>" +
+            "</div>" +
+            '<div class="split-sum__meta">' +
+            UnipubSearch.escapeHtml(UnipubI18n.t("basketSub")) + " " + money(part.sub) +
+            " · " + UnipubSearch.escapeHtml(serviceLabel()) + " " + money(part.service) +
+            "</div>"
+          );
+        }).join("");
+    }
   }
 
   function cartCount() {
@@ -762,7 +814,7 @@
       lines.join("\n"),
       "",
       UnipubI18n.t("basketSub") + ": " + money(sub),
-      UnipubI18n.t("basketService") + ": " + money(service),
+      serviceLabel() + ": " + money(service),
       UnipubI18n.t("basketTotal") + ": " + money(total)
     ];
 
@@ -833,6 +885,7 @@
       els.basketPanel.hidden = true;
       state.basketOpen = false;
       state.waitersOpen = false;
+      document.body.style.overflow = "";
       return;
     }
 
@@ -841,7 +894,7 @@
     els.basketTitle.textContent = UnipubI18n.t("basket");
     els.basketTableLabel.textContent = UnipubI18n.t("table");
     els.basketSubLabel.textContent = UnipubI18n.t("basketSub");
-    els.basketServiceLabel.textContent = UnipubI18n.t("basketService");
+    els.basketServiceLabel.textContent = serviceLabel();
     els.basketTotalLabel.textContent = UnipubI18n.t("basketTotal");
     els.basketClear.textContent = UnipubI18n.t("basketClear");
     els.basketSend.textContent = UnipubI18n.t("basketChooseWaiter");
@@ -891,7 +944,7 @@
             "</div>" +
             '<div class="split-sum__meta">' +
             UnipubSearch.escapeHtml(UnipubI18n.t("basketSub")) + " " + money(part.sub) +
-            " · " + UnipubSearch.escapeHtml(UnipubI18n.t("basketService")) + " " + money(part.service) +
+            " · " + UnipubSearch.escapeHtml(serviceLabel()) + " " + money(part.service) +
             "</div>"
           );
         }).join("");
@@ -1034,6 +1087,7 @@
 
   function applyWorldLanguage(code) {
     var langMeta = UnipubLanguages.find(code) || { code: code, name: code };
+    var gen = ++langGen;
     closeLangModal();
 
     if (UnipubTranslate.isNative(code)) {
@@ -1046,17 +1100,19 @@
     setTxOverlay(true, UnipubI18n.t("toastTranslating"));
     withTimeout(UnipubTranslate.prepare(state.data, UnipubI18n.UI.ru, code), 16000)
       .then(function (result) {
+        if (gen !== langGen) return;
         UnipubI18n.setWorldLang(code, result.map);
         refreshAllViews();
         showToast(langMeta.name);
       })
       .catch(function () {
+        if (gen !== langGen) return;
         UnipubI18n.setWorldLang("ru", null);
         refreshAllViews();
         showToast(UnipubI18n.t("toastTranslateFail"));
       })
       .then(function () {
-        setTxOverlay(false);
+        if (gen === langGen) setTxOverlay(false);
       });
   }
 
@@ -1067,14 +1123,17 @@
       return Promise.resolve(false);
     }
 
-    // Не блокируем экран при старте: меню уже на русском, перевод догоняет в фоне
+    var gen = ++langGen;
     return withTimeout(UnipubTranslate.prepare(state.data, UnipubI18n.UI.ru, code), 16000)
       .then(function (result) {
+        if (gen !== langGen) return false;
         UnipubI18n.setWorldLang(code, result.map);
         return true;
       })
       .catch(function () {
-        UnipubI18n.setWorldLang("ru", null);
+        if (gen !== langGen) return false;
+        // Не затираем сохранённый язык — оставим RU на экране, preference в storage
+        UnipubI18n.setWorldLang("ru", null, false);
         return false;
       });
   }
@@ -1082,7 +1141,7 @@
   function refreshUIText() {
     els.search.placeholder = UnipubI18n.t("searchPlaceholder");
     els.searchClear.setAttribute("aria-label", UnipubI18n.t("clearSearch"));
-    if (els.splashFee) els.splashFee.textContent = UnipubI18n.t("serviceFeeSplash");
+    if (els.splashFee) els.splashFee.textContent = splashServiceLabel();
     if (els.langOpenBtn) {
       var meta = UnipubLanguages.find(UnipubI18n.getWorldCode());
       var code = meta ? meta.code : "ru";
@@ -1095,7 +1154,6 @@
     $("dockRulesLabel").textContent = UnipubI18n.t("rules");
     $("dockTopLabel").textContent = UnipubI18n.t("top");
     setTheme(document.documentElement.getAttribute("data-theme") || "dark");
-    renderBasket();
   }
 
   function bindEvents() {
@@ -1163,7 +1221,27 @@
     });
 
     els.modal.addEventListener("click", function (e) {
-      if (e.target === els.modal) closeModal();
+      if (e.target === els.modal) {
+        closeModal();
+        return;
+      }
+      if (e.target.closest("#modalClose")) {
+        closeModal();
+        return;
+      }
+      if (e.target.closest("#btnOrder")) {
+        var dish = state.itemsById[state.activeDishId];
+        if (dish) addToCart(dish);
+        return;
+      }
+      if (e.target.closest("#btnWaiter")) {
+        showToast(UnipubI18n.t("toastWaiter"));
+        return;
+      }
+      if (e.target.closest("#btnShare")) {
+        var shareItem = state.itemsById[state.activeDishId];
+        if (shareItem) shareDish(shareItem);
+      }
     });
 
     document.addEventListener("keydown", function (e) {
@@ -1191,12 +1269,14 @@
     els.basketFab.addEventListener("click", function () {
       state.basketOpen = !state.basketOpen;
       if (!state.basketOpen) state.waitersOpen = false;
+      document.body.style.overflow = state.basketOpen ? "hidden" : "";
       renderBasket();
     });
 
     els.basketClose.addEventListener("click", function () {
       state.basketOpen = false;
       state.waitersOpen = false;
+      document.body.style.overflow = "";
       renderBasket();
     });
 
@@ -1321,7 +1401,7 @@
       els.progress.style.width = Math.min(100, Math.max(0, ratio)) + "%";
 
       if (state.category !== "all" || state.query) return;
-      var sections = Array.prototype.slice.call(document.querySelectorAll(".section-block"));
+      var sections = sectionEls.length ? sectionEls : Array.prototype.slice.call(document.querySelectorAll(".section-block"));
       var current = null;
       for (var i = 0; i < sections.length; i += 1) {
         var sec = sections[i];
@@ -1420,17 +1500,19 @@
       setTheme("dark");
     }
 
-    // Сначала всегда показываем меню (нативный язык / русский), без ожидания сети
+    // Сначала меню на экране; world-lang preference не затираем в storage
     var savedWorld = UnipubI18n.getWorldCode();
     if (!UnipubTranslate.isNative(savedWorld)) {
-      UnipubI18n.setWorldLang("ru", null);
+      UnipubI18n.setWorldLang("ru", null, false);
     } else {
       UnipubI18n.setWorldLang(savedWorld || "ru", null);
     }
 
     try {
       bindEvents();
-    } catch (e) {}
+    } catch (e) {
+      showToast("UI init error");
+    }
 
     // индекс блюд до sanitize/render
     (data.items || []).forEach(function (item) {

@@ -246,7 +246,7 @@
     document.documentElement.lang = worldCode;
   }
 
-  function setWorldLang(code, map) {
+  function setWorldLang(code, map, persist) {
     worldCode = code || "ru";
     if (UnipubTranslate.isNative(worldCode)) {
       lang = UnipubTranslate.nativePack(worldCode);
@@ -255,7 +255,9 @@
       lang = "ru";
       txMap = map || null;
     }
-    try { localStorage.setItem("unipub:lang", worldCode); } catch (e) {}
+    if (persist !== false) {
+      try { localStorage.setItem("unipub:lang", worldCode); } catch (e) {}
+    }
     document.documentElement.lang = UnipubTranslate.googleCode(worldCode);
     document.documentElement.dir = /^(ar|he|fa|ur|ps|sd|yi|ckb)$/i.test(worldCode) ? "rtl" : "ltr";
   }

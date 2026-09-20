@@ -7,8 +7,9 @@
   "use strict";
 
   var CACHE_KEY = "unipub:tx-cache:v2";
-  var CONCURRENCY = 10;
+  var CONCURRENCY = /Mobi|Android|iPhone/i.test(String(navigator.userAgent || "")) ? 4 : 8;
   var BATCH_SIZE = 12;
+  var CACHE_MAX = 1800;
   var SEP = "\n⟦UNIPUB⟧\n";
   var memory = {};
   var currentTarget = "ru";
@@ -19,10 +20,24 @@
     memory = {};
   }
 
+  function trimCache() {
+    var keys = Object.keys(memory);
+    if (keys.length <= CACHE_MAX) return;
+    keys.slice(0, keys.length - CACHE_MAX).forEach(function (k) {
+      delete memory[k];
+    });
+  }
+
   function saveCache() {
     try {
+      trimCache();
       localStorage.setItem(CACHE_KEY, JSON.stringify(memory));
-    } catch (e) {}
+    } catch (e) {
+      try {
+        memory = {};
+        localStorage.removeItem(CACHE_KEY);
+      } catch (err) {}
+    }
   }
 
   function cacheKey(text, lang) {
