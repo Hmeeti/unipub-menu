@@ -1,13 +1,10 @@
 /* Offline shell для меню UNIPUB */
-const CACHE = "unipub-v21";
+const CACHE = "unipub-v22";
 const ASSETS = [
   "./",
   "./index.html",
-  "./admin.html",
   "./css/style.css",
-  "./css/admin.css",
   "./js/app.js",
-  "./js/admin.js",
   "./js/search.js",
   "./js/i18n.js",
   "./js/menu-data.js",
@@ -37,18 +34,21 @@ function isDocumentRequest(req) {
   return accept.includes("text/html");
 }
 
+function isMenuData(url) {
+  return /\/js\/menu-data\.js$/i.test(url.pathname);
+}
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
 
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) {
-    // Переводчик и внешние API — только сеть
     return;
   }
 
-  // HTML — сначала сеть, чтобы телефон не залипал на старой версии меню
-  if (isDocumentRequest(req)) {
+  // HTML и menu-data — сначала сеть (админ-пуш должен быть виден сразу)
+  if (isDocumentRequest(req) || isMenuData(url)) {
     event.respondWith(
       fetch(req)
         .then((res) => {
@@ -56,7 +56,9 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE).then((cache) => cache.put(req, copy)).catch(() => {});
           return res;
         })
-        .catch(() => caches.match(req).then((cached) => cached || caches.match("./index.html")))
+        .catch(() =>
+          caches.match(req).then((cached) => cached || (isDocumentRequest(req) ? caches.match("./index.html") : undefined))
+        )
     );
     return;
   }

@@ -28,15 +28,7 @@
   var WAITERS = DEFAULT_WAITERS.slice();
 
   function resolveMenuData() {
-    var data = window.UNIPUB_DATA || null;
-    try {
-      var raw = localStorage.getItem("unipub:live-data");
-      if (raw) {
-        var parsed = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && Array.isArray(parsed.items)) data = parsed;
-      }
-    } catch (e) {}
-    return data;
+    return window.UNIPUB_DATA || null;
   }
 
   function applyRuntimeConfig(data) {
