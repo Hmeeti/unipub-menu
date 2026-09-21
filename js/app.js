@@ -360,7 +360,7 @@
           ) + "</p>" +
           '<p class="card__desc" data-field="desc"></p>' +
           '<div class="card__foot"><span class="card__price">' + money(item.price) + "</span>" +
-          '<button class="card__btn" type="button" data-open="' + item.id + '">' + UnipubI18n.t("details") + "</button>" +
+          '<button class="card__btn" type="button" data-open="' + item.id + '" aria-label="' + UnipubSearch.escapeHtml(UnipubI18n.t("details")) + '">+</button>' +
           "</div></div></article>"
         );
       });
