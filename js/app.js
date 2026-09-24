@@ -18,6 +18,10 @@
   var SERVICE_RATE = 0.15;
   var SHARED_ID = "shared";
   var ORDER_API = String(window.UNIPUB_ORDER_API || "https://unipub-admin.onrender.com/api/order");
+  var ORDER_TICKET_API = String(window.UNIPUB_ORDER_TICKET_API || "https://unipub-admin.onrender.com/api/order-ticket");
+  var orderTicket = null;
+  var orderTicketPromise = null;
+  var orderSending = false;
 
   var DEFAULT_WAITERS = [
     { id: "eleanora", name: "Элеанора", phone: "77771172605", display: "+7 777 117 2605" },
@@ -802,6 +806,7 @@
       showToast(UnipubI18n.t("toastNeedTable"));
       if (els.basketTable) els.basketTable.focus();
     }
+    fetchOrderTicket(false).catch(function () {});
     window.setTimeout(function () {
       if (els.basketWaiters) {
         els.basketWaiters.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -824,7 +829,7 @@
     }
   }
 
-  function buildTelegramOrderPayload(waiterName) {
+  function buildTelegramOrderPayload(waiterName, ticket) {
     var items = [];
     Object.keys(state.cart).forEach(function (id) {
       var item = state.itemsById[id];
@@ -843,22 +848,65 @@
       waiter: waiterName,
       time: formatOrderTime(),
       comment: "",
+      website: "",
+      ticket: ticket || "",
       total: total,
       totalLabel: money(total),
       items: items
     };
   }
 
-  function sendOrderToTelegram(waiterName) {
-    var payload = buildTelegramOrderPayload(waiterName);
-    return fetch(ORDER_API, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+  function fetchOrderTicket(force) {
+    if (!force && orderTicket && orderTicket.token && orderTicket.exp > Date.now() + 5000) {
+      return Promise.resolve(orderTicket);
+    }
+    if (!force && orderTicketPromise) return orderTicketPromise;
+    orderTicketPromise = fetch(ORDER_TICKET_API, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store"
     })
       .then(function (res) {
+        return res.json().then(function (body) {
+          if (!res.ok || !body || !body.token) throw new Error("ticket");
+          orderTicket = {
+            token: body.token,
+            exp: Date.now() + (Number(body.ttlMs) || 15 * 60 * 1000)
+          };
+          return orderTicket;
+        });
+      })
+      .catch(function () {
+        orderTicket = null;
+        throw new Error("ticket");
+      })
+      .then(function (ticket) {
+        orderTicketPromise = null;
+        return ticket;
+      }, function (err) {
+        orderTicketPromise = null;
+        throw err;
+      });
+    return orderTicketPromise;
+  }
+
+  function sendOrderToTelegram(waiterName) {
+    return fetchOrderTicket(false)
+      .catch(function () { return fetchOrderTicket(true); })
+      .then(function (ticket) {
+        var payload = buildTelegramOrderPayload(waiterName, ticket.token);
+        return fetch(ORDER_API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+      })
+      .then(function (res) {
         return res.json().catch(function () { return {}; }).then(function (body) {
-          return { ok: res.ok || res.status === 202, body: body };
+          if (body && (body.error === "ticket_used" || body.error === "ticket_invalid" || body.error === "ticket_required")) {
+            orderTicket = null;
+          }
+          return { ok: res.ok || res.status === 202, status: res.status, body: body };
         });
       })
       .catch(function () {
@@ -869,16 +917,35 @@
   function sendToWaiter(waiter) {
     if (!waiter) return;
     if (!requireTableAndCart()) return;
+    if (orderSending) {
+      showToast("Уже отправляем…");
+      return;
+    }
+    orderSending = true;
     showToast("Отправляем заказ…");
     sendOrderToTelegram(waiter.name).then(function (result) {
+      orderSending = false;
+      var err = result && result.body && result.body.error;
       if (result && result.body && result.body.telegram) {
+        orderTicket = null;
         showToast("Заказ отправлен · " + waiter.name);
         clearCart();
-      } else if (result && result.body && result.body.saved) {
-        showToast("Заказ сохранён · Telegram временно недоступен");
-      } else {
-        showToast("Не удалось отправить заказ");
+        return;
       }
+      if (result && result.status === 429) {
+        showToast("Слишком много заказов · подождите");
+        return;
+      }
+      if (err === "duplicate") {
+        showToast("Этот заказ уже отправлен");
+        return;
+      }
+      if (result && result.body && result.body.saved) {
+        orderTicket = null;
+        showToast("Заказ сохранён · Telegram временно недоступен");
+        return;
+      }
+      showToast("Не удалось отправить заказ");
     });
     state.waitersOpen = false;
     renderBasket();

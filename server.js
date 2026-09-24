@@ -387,30 +387,223 @@ async function sendTelegramMessage(text) {
   return body;
 }
 
-// Публичный эндпоинт меню гостей → Telegram-группа
+/* ---------- Anti-spam for public orders ---------- */
+const TICKET_TTL_MS = 20 * 60 * 1000;
+const TICKET_MIN_AGE_MS = 1200;
+const ALLOWED_ORDER_ORIGINS = [
+  /^https:\/\/hmeeti\.github\.io$/i,
+  /^https:\/\/[a-z0-9-]+\.onrender\.com$/i,
+  /^http:\/\/localhost(:\d+)?$/i,
+  /^http:\/\/127\.0\.0\.1(:\d+)?$/i
+];
+
+const rateBuckets = new Map();
+const usedTickets = new Map();
+const recentFingerprints = new Map();
+const blockedIps = new Map();
+
+function clientIp(req) {
+  const xf = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  return xf || req.socket.remoteAddress || "unknown";
+}
+
+function pruneMap(map, maxAge) {
+  const now = Date.now();
+  for (const [k, v] of map.entries()) {
+    const ts = typeof v === "number" ? v : (v && v.exp) || 0;
+    if (ts && now > ts) map.delete(k);
+  }
+  if (map.size > 5000) {
+    const keys = Array.from(map.keys()).slice(0, map.size - 4000);
+    keys.forEach((k) => map.delete(k));
+  }
+}
+
+function hitRate(key, limit, windowMs) {
+  const now = Date.now();
+  let bucket = rateBuckets.get(key);
+  if (!bucket || now > bucket.reset) {
+    bucket = { count: 0, reset: now + windowMs };
+    rateBuckets.set(key, bucket);
+  }
+  bucket.count += 1;
+  return bucket.count <= limit;
+}
+
+function isOriginAllowed(origin) {
+  if (!origin) return false;
+  return ALLOWED_ORDER_ORIGINS.some((re) => re.test(origin));
+}
+
+function toBase64Url(bufOrStr) {
+  const b = Buffer.isBuffer(bufOrStr) ? bufOrStr : Buffer.from(String(bufOrStr), "utf8");
+  return b.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+}
+
+function fromBase64Url(token) {
+  let s = String(token || "").replace(/-/g, "+").replace(/_/g, "/");
+  while (s.length % 4) s += "=";
+  return Buffer.from(s, "base64").toString("utf8");
+}
+
+function issueOrderTicket() {
+  const issuedAt = Date.now();
+  const nonce = crypto.randomBytes(16).toString("hex");
+  const payload = issuedAt + "." + nonce;
+  const sig = crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("hex");
+  return {
+    token: toBase64Url(payload + "." + sig),
+    ttlMs: TICKET_TTL_MS
+  };
+}
+
+function consumeOrderTicket(token) {
+  if (!token || typeof token !== "string" || token.length > 400) {
+    return { ok: false, error: "ticket_required" };
+  }
+  let raw;
+  try {
+    raw = fromBase64Url(token);
+  } catch (_) {
+    return { ok: false, error: "ticket_invalid" };
+  }
+  const parts = raw.split(".");
+  if (parts.length !== 3) return { ok: false, error: "ticket_invalid" };
+  const issuedAt = Number(parts[0]);
+  const nonce = parts[1];
+  const sig = parts[2];
+  if (!issuedAt || !nonce || !sig) return { ok: false, error: "ticket_invalid" };
+  const expect = crypto.createHmac("sha256", SESSION_SECRET).update(issuedAt + "." + nonce).digest("hex");
+  if (expect !== sig) return { ok: false, error: "ticket_invalid" };
+
+  const age = Date.now() - issuedAt;
+  if (age < TICKET_MIN_AGE_MS) return { ok: false, error: "too_fast" };
+  if (age > TICKET_TTL_MS) return { ok: false, error: "ticket_expired" };
+
+  pruneMap(usedTickets, TICKET_TTL_MS);
+  if (usedTickets.has(nonce)) return { ok: false, error: "ticket_used" };
+  usedTickets.set(nonce, Date.now() + TICKET_TTL_MS);
+  return { ok: true };
+}
+
+function orderFingerprint(order) {
+  const itemsKey = (order.items || [])
+    .map((it) => it.id + ":" + it.qty)
+    .sort()
+    .join("|");
+  return crypto
+    .createHash("sha256")
+    .update([order.table, order.waiter, itemsKey, order.total].join("#"))
+    .digest("hex");
+}
+
+app.get("/api/order-ticket", (req, res) => {
+  pruneMap(rateBuckets, 0);
+  const ip = clientIp(req);
+  if (blockedIps.has(ip) && Date.now() < blockedIps.get(ip)) {
+    return res.status(429).json({ ok: false, error: "blocked" });
+  }
+  if (!hitRate("ticket:" + ip, 30, 10 * 60 * 1000)) {
+    blockedIps.set(ip, Date.now() + 15 * 60 * 1000);
+    return res.status(429).json({ ok: false, error: "rate_ticket" });
+  }
+  const ticket = issueOrderTicket();
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ ok: true, token: ticket.token, ttlMs: ticket.ttlMs });
+});
+
+// Публичный эндпоинт меню гостей → Telegram-группа (со spam-защитой)
 app.post("/api/order", async (req, res) => {
+  const origin = String(req.headers.origin || "");
+  const referer = String(req.headers.referer || "");
+  const ua = String(req.headers["user-agent"] || "");
+  const ip = clientIp(req);
   const body = req.body || {};
+
+  pruneMap(rateBuckets, 0);
+  pruneMap(usedTickets, TICKET_TTL_MS);
+  pruneMap(recentFingerprints, 5 * 60 * 1000);
+  pruneMap(blockedIps, 0);
+
+  if (blockedIps.has(ip) && Date.now() < blockedIps.get(ip)) {
+    return res.status(429).json({ ok: false, error: "blocked" });
+  }
+
+  // Только известные origins (браузерные запросы)
+  if (origin && !isOriginAllowed(origin)) {
+    return res.status(403).json({ ok: false, error: "origin" });
+  }
+  if (!origin && referer && !/hmeeti\.github\.io|localhost|127\.0\.0\.1|onrender\.com/i.test(referer)) {
+    return res.status(403).json({ ok: false, error: "referer" });
+  }
+  if (!ua || ua.length < 12) {
+    return res.status(403).json({ ok: false, error: "ua" });
+  }
+
+  // Honeypot: боты часто заполняют скрытое поле
+  if (String(body.website || body.url || body.company || "").trim()) {
+    return res.status(200).json({ ok: true, saved: false, telegram: false, honeypot: true });
+  }
+
+  if (!hitRate("order:ip:" + ip, 8, 10 * 60 * 1000)) {
+    blockedIps.set(ip, Date.now() + 30 * 60 * 1000);
+    return res.status(429).json({ ok: false, error: "rate_ip" });
+  }
+  if (!hitRate("order:ip-hour:" + ip, 20, 60 * 60 * 1000)) {
+    blockedIps.set(ip, Date.now() + 60 * 60 * 1000);
+    return res.status(429).json({ ok: false, error: "rate_ip_hour" });
+  }
+  if (!hitRate("order:global", 120, 10 * 60 * 1000)) {
+    return res.status(429).json({ ok: false, error: "rate_global" });
+  }
+
+  const ticketCheck = consumeOrderTicket(body.ticket);
+  if (!ticketCheck.ok) {
+    return res.status(403).json({ ok: false, error: ticketCheck.error });
+  }
+
   const items = Array.isArray(body.items) ? body.items : [];
+  if (items.length < 1 || items.length > 40) {
+    return res.status(400).json({ ok: false, error: "items_limit" });
+  }
+
   const order = {
     id: "ord_" + Date.now().toString(36) + "_" + Math.floor(Math.random() * 999),
     createdAt: new Date().toISOString(),
-    table: String(body.table || "").trim().slice(0, 32),
+    table: String(body.table || "").trim().slice(0, 8),
     waiter: String(body.waiter || "").trim().slice(0, 64),
     time: String(body.time || "").trim().slice(0, 64),
-    comment: String(body.comment || "").trim().slice(0, 500),
+    comment: String(body.comment || "").trim().slice(0, 300),
     total: Number(body.total) || 0,
     totalLabel: String(body.totalLabel || "").trim().slice(0, 64),
-    items: items.slice(0, 80).map((it) => ({
+    ip: ip,
+    items: items.slice(0, 40).map((it) => ({
       id: String((it && it.id) || "").slice(0, 64),
       name: String((it && it.name) || "Блюдо").trim().slice(0, 120),
       qty: Math.max(1, Math.min(99, Number(it && it.qty) || 1)),
-      price: Number(it && it.price) || 0
+      price: Math.max(0, Math.min(1000000, Number(it && it.price) || 0))
     }))
   };
 
-  if (!order.table || !order.waiter || !order.items.length) {
-    return res.status(400).json({ ok: false, error: "invalid_order" });
+  if (!/^[0-9A-Za-zА-Яа-яЁё\-]{1,8}$/.test(order.table)) {
+    return res.status(400).json({ ok: false, error: "bad_table" });
   }
+  if (!order.waiter || order.waiter.length < 2) {
+    return res.status(400).json({ ok: false, error: "bad_waiter" });
+  }
+  if (order.total < 0 || order.total > 5000000) {
+    return res.status(400).json({ ok: false, error: "bad_total" });
+  }
+
+  if (!hitRate("order:table:" + order.table, 10, 15 * 60 * 1000)) {
+    return res.status(429).json({ ok: false, error: "rate_table" });
+  }
+
+  const fp = orderFingerprint(order);
+  if (recentFingerprints.has(fp)) {
+    return res.status(429).json({ ok: false, error: "duplicate" });
+  }
+  recentFingerprints.set(fp, Date.now() + 90 * 1000);
 
   const saved = saveOrderRecord(order);
   let telegramOk = false;
