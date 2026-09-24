@@ -3,4 +3,5 @@
 .env.*
 !.env.example
 data/live-cache.json
+data/orders.jsonl
 .DS_Store

@@ -1,6 +1,6 @@
 /**
  * UNIPUB Admin API (Render)
- * PIN auth + menu CRUD + server-side GitHub auto-push
+ * PIN auth + menu CRUD + GitHub auto-push + Telegram orders
  */
 "use strict";
 
@@ -12,11 +12,34 @@ const express = require("express");
 const ROOT = __dirname;
 const CACHE_FILE = path.join(ROOT, "data", "live-cache.json");
 const MENU_JS = path.join(ROOT, "js", "menu-data.js");
+const ORDERS_FILE = path.join(ROOT, "data", "orders.jsonl");
+
+function loadEnvFile() {
+  try {
+    const envPath = path.join(ROOT, ".env");
+    if (!fs.existsSync(envPath)) return;
+    fs.readFileSync(envPath, "utf8").split(/\r?\n/).forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) return;
+      const eq = trimmed.indexOf("=");
+      if (eq < 1) return;
+      const key = trimmed.slice(0, eq).trim();
+      let val = trimmed.slice(eq + 1).trim();
+      if ((val.startsWith("\"") && val.endsWith("\"")) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (key && process.env[key] == null) process.env[key] = val;
+    });
+  } catch (_) {}
+}
+loadEnvFile();
 
 const PORT = Number(process.env.PORT) || 3000;
 const ADMIN_PIN = String(process.env.ADMIN_PIN || "0000");
 const SESSION_SECRET = String(process.env.SESSION_SECRET || crypto.randomBytes(24).toString("hex"));
 const MENU_URL = String(process.env.MENU_URL || "https://hmeeti.github.io/unipub-menu/").replace(/\/?$/, "/");
+const TELEGRAM_BOT_TOKEN = String(process.env.TELEGRAM_BOT_TOKEN || "").trim();
+const TELEGRAM_CHAT_ID = String(process.env.TELEGRAM_CHAT_ID || "").trim();
 
 const GH = {
   token: String(process.env.GITHUB_TOKEN || "").trim().replace(/^["']|["']$/g, ""),
@@ -33,6 +56,22 @@ let pushLock = false;
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "4mb" }));
+
+app.use((req, res, next) => {
+  const origin = String(req.headers.origin || "");
+  if (
+    /hmeeti\.github\.io$/i.test(origin) ||
+    /localhost(:\d+)?$/i.test(origin) ||
+    /127\.0\.0\.1(:\d+)?$/i.test(origin) ||
+    /\.onrender\.com$/i.test(origin)
+  ) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  }
+  if (req.method === "OPTIONS") return res.sendStatus(204);
+  next();
+});
 
 function parseMenuJs(text) {
   const cleaned = String(text || "")
@@ -214,6 +253,7 @@ app.get("/api/health", (_req, res) => {
     ok: true,
     service: "unipub-admin",
     github: Boolean(GH.token),
+    telegram: Boolean(TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID),
     repo: GH.owner + "/" + GH.repo
   });
 });
@@ -294,6 +334,104 @@ app.post("/api/publish", auth, async (req, res) => {
   }
 });
 
+function saveOrderRecord(order) {
+  try {
+    fs.mkdirSync(path.dirname(ORDERS_FILE), { recursive: true });
+    fs.appendFileSync(ORDERS_FILE, JSON.stringify(order) + "\n", "utf8");
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+function formatOrderTelegramText(order) {
+  const lines = [
+    "Новый заказ",
+    "",
+    "Стол: " + (order.table || "—"),
+    "Официант: " + (order.waiter || "—"),
+    "Время: " + (order.time || "—"),
+    ""
+  ];
+  (order.items || []).forEach((item) => {
+    const name = String(item.name || "Блюдо").trim();
+    const qty = Number(item.qty) || 1;
+    lines.push("• " + name + " × " + qty);
+  });
+  lines.push("");
+  lines.push("Итого: " + (order.totalLabel || ((order.total || 0) + " ₸")));
+  if (order.comment) {
+    lines.push("Комментарий: " + order.comment);
+  }
+  return lines.join("\n");
+}
+
+async function sendTelegramMessage(text) {
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
+    throw new Error("TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID не заданы");
+  }
+  const url = "https://api.telegram.org/bot" + TELEGRAM_BOT_TOKEN + "/sendMessage";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      chat_id: TELEGRAM_CHAT_ID,
+      text: text,
+      disable_web_page_preview: true
+    })
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok || !body.ok) {
+    throw new Error((body && body.description) || ("Telegram HTTP " + res.status));
+  }
+  return body;
+}
+
+// Публичный эндпоинт меню гостей → Telegram-группа
+app.post("/api/order", async (req, res) => {
+  const body = req.body || {};
+  const items = Array.isArray(body.items) ? body.items : [];
+  const order = {
+    id: "ord_" + Date.now().toString(36) + "_" + Math.floor(Math.random() * 999),
+    createdAt: new Date().toISOString(),
+    table: String(body.table || "").trim().slice(0, 32),
+    waiter: String(body.waiter || "").trim().slice(0, 64),
+    time: String(body.time || "").trim().slice(0, 64),
+    comment: String(body.comment || "").trim().slice(0, 500),
+    total: Number(body.total) || 0,
+    totalLabel: String(body.totalLabel || "").trim().slice(0, 64),
+    items: items.slice(0, 80).map((it) => ({
+      id: String((it && it.id) || "").slice(0, 64),
+      name: String((it && it.name) || "Блюдо").trim().slice(0, 120),
+      qty: Math.max(1, Math.min(99, Number(it && it.qty) || 1)),
+      price: Number(it && it.price) || 0
+    }))
+  };
+
+  if (!order.table || !order.waiter || !order.items.length) {
+    return res.status(400).json({ ok: false, error: "invalid_order" });
+  }
+
+  const saved = saveOrderRecord(order);
+  let telegramOk = false;
+  let telegramError = null;
+
+  try {
+    await sendTelegramMessage(formatOrderTelegramText(order));
+    telegramOk = true;
+  } catch (err) {
+    telegramError = err && err.message ? err.message : "telegram_failed";
+  }
+
+  res.status(telegramOk ? 200 : 202).json({
+    ok: true,
+    saved: saved,
+    telegram: telegramOk,
+    orderId: order.id,
+    error: telegramError
+  });
+});
+
 // Static admin UI
 app.get("/", (_req, res) => {
   res.sendFile(path.join(ROOT, "admin.html"));
@@ -308,5 +446,9 @@ app.get("/admin.html", (_req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log("UNIPUB admin on :" + PORT + " · github=" + Boolean(GH.token));
+  console.log(
+    "UNIPUB admin on :" + PORT +
+    " · github=" + Boolean(GH.token) +
+    " · telegram=" + Boolean(TELEGRAM_BOT_TOKEN && TELEGRAM_CHAT_ID)
+  );
 });

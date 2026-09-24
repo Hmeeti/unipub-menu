@@ -17,6 +17,7 @@
 
   var SERVICE_RATE = 0.15;
   var SHARED_ID = "shared";
+  var ORDER_API = String(window.UNIPUB_ORDER_API || "https://unipub-admin.onrender.com/api/order");
 
   var DEFAULT_WAITERS = [
     { id: "eleanora", name: "Элеанора", phone: "77771172605", display: "+7 777 117 2605" },
@@ -859,10 +860,77 @@
     }, 50);
   }
 
+  function formatOrderTime() {
+    try {
+      return new Date().toLocaleString("ru-RU", {
+        timeZone: "Asia/Almaty",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch (e) {
+      return new Date().toLocaleString("ru-RU");
+    }
+  }
+
+  function buildTelegramOrderPayload(waiterName) {
+    var items = [];
+    Object.keys(state.cart).forEach(function (id) {
+      var item = state.itemsById[id];
+      var qty = Number(state.cart[id]) || 0;
+      if (!item || qty <= 0) return;
+      items.push({
+        id: item.id,
+        name: UnipubI18n.localized(item.name),
+        qty: qty,
+        price: item.price
+      });
+    });
+    var total = cartGrandTotal();
+    return {
+      table: getTable(),
+      waiter: waiterName,
+      time: formatOrderTime(),
+      comment: "",
+      total: total,
+      totalLabel: money(total),
+      items: items
+    };
+  }
+
+  function sendOrderToTelegram(waiterName) {
+    var payload = buildTelegramOrderPayload(waiterName);
+    return fetch(ORDER_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+      .then(function (res) {
+        return res.json().catch(function () { return {}; }).then(function (body) {
+          return { ok: res.ok || res.status === 202, body: body };
+        });
+      })
+      .catch(function () {
+        return { ok: false, body: { error: "network" } };
+      });
+  }
+
   function sendToWaiter(waiter) {
     if (!waiter) return;
     if (!requireTableAndCart()) return;
     var text = buildOrderText(waiter.name);
+    // Telegram — асинхронно, UI не ждёт
+    sendOrderToTelegram(waiter.name).then(function (result) {
+      if (result && result.body && result.body.telegram) {
+        showToast("Заказ в Telegram · " + waiter.name);
+      } else if (result && result.body && result.body.saved) {
+        showToast("Заказ сохранён · Telegram временно недоступен");
+      } else {
+        showToast("Не удалось отправить в Telegram");
+      }
+    });
     window.open(whatsappUrl(text, waiter.phone), "_blank", "noopener");
     showToast(UnipubI18n.t("toastSentTo") + " " + waiter.name);
     state.waitersOpen = false;
