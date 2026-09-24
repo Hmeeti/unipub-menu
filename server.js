@@ -389,7 +389,7 @@ async function sendTelegramMessage(text) {
 
 /* ---------- Anti-spam for public orders ---------- */
 const TICKET_TTL_MS = 20 * 60 * 1000;
-const TICKET_MIN_AGE_MS = 1200;
+const TICKET_MIN_AGE_MS = 0;
 const ALLOWED_ORDER_ORIGINS = [
   /^https:\/\/hmeeti\.github\.io$/i,
   /^https:\/\/[a-z0-9-]+\.onrender\.com$/i,
@@ -477,7 +477,7 @@ function consumeOrderTicket(token) {
   if (expect !== sig) return { ok: false, error: "ticket_invalid" };
 
   const age = Date.now() - issuedAt;
-  if (age < TICKET_MIN_AGE_MS) return { ok: false, error: "too_fast" };
+  if (TICKET_MIN_AGE_MS > 0 && age < TICKET_MIN_AGE_MS) return { ok: false, error: "too_fast" };
   if (age > TICKET_TTL_MS) return { ok: false, error: "ticket_expired" };
 
   pruneMap(usedTickets, TICKET_TTL_MS);

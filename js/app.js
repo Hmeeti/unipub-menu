@@ -762,6 +762,7 @@
     saveCart();
     renderBasket();
     showToast(UnipubI18n.t("toastOrder"));
+    fetchOrderTicket(false).catch(function () {});
   }
 
   function setCartQty(id, qty) {
@@ -891,26 +892,54 @@
   }
 
   function sendOrderToTelegram(waiterName) {
-    return fetchOrderTicket(false)
-      .catch(function () { return fetchOrderTicket(true); })
-      .then(function (ticket) {
-        var payload = buildTelegramOrderPayload(waiterName, ticket.token);
-        return fetch(ORDER_API, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
+    function postOnce(forceTicket) {
+      return fetchOrderTicket(forceTicket)
+        .then(function (ticket) {
+          var payload = buildTelegramOrderPayload(waiterName, ticket.token);
+          return fetch(ORDER_API, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+        })
+        .then(function (res) {
+          return res.json().catch(function () { return {}; }).then(function (body) {
+            var err = body && body.error;
+            if (err === "ticket_used" || err === "ticket_invalid" || err === "ticket_required" || err === "ticket_expired" || err === "too_fast") {
+              orderTicket = null;
+            }
+            return { ok: res.ok || res.status === 202, status: res.status, body: body || {} };
+          });
         });
-      })
-      .then(function (res) {
-        return res.json().catch(function () { return {}; }).then(function (body) {
-          if (body && (body.error === "ticket_used" || body.error === "ticket_invalid" || body.error === "ticket_required")) {
-            orderTicket = null;
-          }
-          return { ok: res.ok || res.status === 202, status: res.status, body: body };
-        });
-      })
+    }
+
+    return postOnce(false)
       .catch(function () {
         return { ok: false, body: { error: "network" } };
+      })
+      .then(function (result) {
+        var err = result && result.body && result.body.error;
+        var shouldRetry =
+          !result.ok &&
+          (err === "too_fast" ||
+            err === "ticket_expired" ||
+            err === "ticket_invalid" ||
+            err === "ticket_required" ||
+            err === "ticket_used" ||
+            err === "network" ||
+            result.status === 403 ||
+            result.status === 0);
+        if (!shouldRetry) return result;
+        orderTicket = null;
+        return new Promise(function (resolve) {
+          window.setTimeout(function () {
+            postOnce(true)
+              .catch(function () {
+                return { ok: false, body: { error: "network" } };
+              })
+              .then(resolve);
+          }, 600);
+        });
       });
   }
 
@@ -1353,6 +1382,7 @@
       if (!state.basketOpen) state.waitersOpen = false;
       document.body.style.overflow = state.basketOpen ? "hidden" : "";
       renderBasket();
+      if (state.basketOpen) fetchOrderTicket(false).catch(function () {});
     });
 
     els.basketClose.addEventListener("click", function () {
