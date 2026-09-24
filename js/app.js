@@ -1,6 +1,6 @@
 /**
  * UNIPUB — основное приложение меню.
- * Загрузка JSON, фильтры, модалка, WhatsApp, recent, PWA hooks.
+ * Загрузка JSON, фильтры, модалка, корзина, Telegram-заказ, PWA hooks.
  */
 (function () {
   "use strict";
@@ -198,11 +198,6 @@
     return "badge badge--" + flag;
   }
 
-  function whatsappUrl(text, phoneOverride) {
-    var phone = phoneOverride || state.data.venue.whatsapp;
-    return "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
-  }
-
   function hideSplash() {
     if (!els.splash) return;
     els.splash.classList.add("is-hidden");
@@ -253,7 +248,6 @@
 
     els.contacts.innerHTML = [
       '<a class="contact-pill" href="tel:' + v.phone + '">' + UnipubI18n.t("phone") + "</a>",
-      '<a class="contact-pill contact-pill--wa" target="_blank" rel="noopener" href="' + whatsappUrl("Здравствуйте! Пишу из меню UNIPUB.") + '">' + UnipubI18n.t("wa") + "</a>",
       '<a class="contact-pill contact-pill--ig" target="_blank" rel="noopener" href="' + v.instagram + '">' + UnipubI18n.t("ig") + "</a>",
       '<a class="contact-pill contact-pill--map" target="_blank" rel="noopener" href="' + v.map2gis + '">' + UnipubI18n.t("openMaps") + "</a>"
     ].join("");
@@ -784,51 +778,6 @@
     renderBasket();
   }
 
-  function buildOrderText(waiterName) {
-    var lines = [];
-    Object.keys(state.cart).forEach(function (id) {
-      var item = state.itemsById[id];
-      var qty = Number(state.cart[id]) || 0;
-      if (!item || qty <= 0) return;
-      var who = "";
-      if (state.splitOn) {
-        var owner = getItemOwner(id);
-        if (owner === SHARED_ID) who = " [" + UnipubI18n.t("splitShared") + "]";
-        else {
-          var person = state.splitPeople.filter(function (p) { return p.id === owner; })[0];
-          if (person) who = " [" + person.name + "]";
-        }
-      }
-      lines.push(qty + "× " + UnipubI18n.localized(item.name) + " — " + money(item.price * qty) + who);
-    });
-
-    var table = getTable() || "—";
-    var sub = cartSubtotal();
-    var service = cartService();
-    var total = cartGrandTotal();
-
-    var out = [
-      "UNIPUB — заказ",
-      "Стол: " + table,
-      "Официант: " + waiterName,
-      "",
-      lines.join("\n"),
-      "",
-      UnipubI18n.t("basketSub") + ": " + money(sub),
-      serviceLabel() + ": " + money(service),
-      UnipubI18n.t("basketTotal") + ": " + money(total)
-    ];
-
-    if (state.splitOn && state.splitPeople.length) {
-      out.push("", UnipubI18n.t("splitByPerson") + ":");
-      calcSplit().forEach(function (part) {
-        out.push(part.name + " — " + money(part.total));
-      });
-    }
-
-    return out.join("\n");
-  }
-
   function requireTableAndCart() {
     if (!cartCount()) {
       showToast(UnipubI18n.t("basketEmpty"));
@@ -920,19 +869,17 @@
   function sendToWaiter(waiter) {
     if (!waiter) return;
     if (!requireTableAndCart()) return;
-    var text = buildOrderText(waiter.name);
-    // Telegram — асинхронно, UI не ждёт
+    showToast("Отправляем заказ…");
     sendOrderToTelegram(waiter.name).then(function (result) {
       if (result && result.body && result.body.telegram) {
-        showToast("Заказ в Telegram · " + waiter.name);
+        showToast("Заказ отправлен · " + waiter.name);
+        clearCart();
       } else if (result && result.body && result.body.saved) {
         showToast("Заказ сохранён · Telegram временно недоступен");
       } else {
-        showToast("Не удалось отправить в Telegram");
+        showToast("Не удалось отправить заказ");
       }
     });
-    window.open(whatsappUrl(text, waiter.phone), "_blank", "noopener");
-    showToast(UnipubI18n.t("toastSentTo") + " " + waiter.name);
     state.waitersOpen = false;
     renderBasket();
   }
