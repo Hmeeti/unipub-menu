@@ -202,6 +202,11 @@
     return "badge badge--" + flag;
   }
 
+  function whatsappUrl(text) {
+    var phone = String(state.data.venue.whatsapp || "").replace(/\D/g, "");
+    return "https://wa.me/" + phone + "?text=" + encodeURIComponent(text);
+  }
+
   function hideSplash() {
     if (!els.splash) return;
     els.splash.classList.add("is-hidden");
@@ -252,6 +257,7 @@
 
     els.contacts.innerHTML = [
       '<a class="contact-pill" href="tel:' + v.phone + '">' + UnipubI18n.t("phone") + "</a>",
+      '<a class="contact-pill contact-pill--wa" target="_blank" rel="noopener" href="' + whatsappUrl("Здравствуйте! Пишу из меню UNIPUB.") + '">' + UnipubI18n.t("wa") + "</a>",
       '<a class="contact-pill contact-pill--ig" target="_blank" rel="noopener" href="' + v.instagram + '">' + UnipubI18n.t("ig") + "</a>",
       '<a class="contact-pill contact-pill--map" target="_blank" rel="noopener" href="' + v.map2gis + '">' + UnipubI18n.t("openMaps") + "</a>"
     ].join("");
