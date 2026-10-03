@@ -1,0 +1,11 @@
+.next
+node_modules
+drizzle/meta
+legacy
+public/serwist
+.data
+coverage
+playwright-report
+test-results
+.lighthouseci
+package-lock.json

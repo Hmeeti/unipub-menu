@@ -1,0 +1,34 @@
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+/out/
+next-env.d.ts
+*.tsbuildinfo
+
+# production bundles
+/dist
+/build
+
+# local data & env
+/.data
+.env
+.env.*
+!.env.example
+deploy/.env
+deploy/.env.*
+deploy/caddy-extra/staging.caddy
+
+# testing
+/coverage
+/playwright-report
+/test-results
+/.lighthouseci
+/blob-report
+
+# misc
+.DS_Store
+*.pem
+npm-debug.log*
+.vercel
