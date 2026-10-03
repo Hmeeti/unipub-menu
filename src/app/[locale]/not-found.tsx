@@ -9,7 +9,8 @@ export default async function NotFound() {
       className="mx-auto flex min-h-[70dvh] max-w-md flex-col items-center justify-center px-6 text-center"
     >
       <p className="wordmark text-text text-5xl">
-        unipub<span className="text-pink">.</span>
+        unipub
+        <span className="wordmark-dot" aria-hidden="true" />
       </p>
       <h1 className="mt-6 text-2xl font-extrabold">{t("title")}</h1>
       <p className="text-muted mt-2 text-[15px]">{t("text")}</p>

@@ -24,7 +24,10 @@ export function AdminNav({ role, name }: { role: AdminRole; name: string }) {
     <>
       <aside className="border-line bg-bg-2 fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r lg:flex">
         <div className="px-5 pt-5 pb-4">
-          <div className="wordmark text-pink text-2xl">unipub</div>
+          <div className="wordmark text-text text-2xl">
+            unipub
+            <span className="wordmark-dot" aria-hidden="true" />
+          </div>
           <div className="text-muted mt-1 truncate text-[13px]">{name}</div>
         </div>
         <nav aria-label="Разделы" className="min-h-0 flex-1 overflow-y-auto px-3">

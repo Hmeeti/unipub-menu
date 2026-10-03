@@ -198,11 +198,35 @@
   }
 }
 
+/* Brand wordmark as on the original site: Manrope 800, tight tracking, glowing pink dot. */
 .wordmark {
-  font-family: var(--font-display);
+  display: inline-flex;
+  align-items: flex-end;
+  font-family: var(--font-sans);
   font-weight: 800;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.05em;
   line-height: 1;
+  text-transform: lowercase;
+}
+.wordmark-dot {
+  width: 0.2em;
+  height: 0.2em;
+  margin: 0 0 0.1em 0.08em;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--pink);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--pink) 80%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .wordmark-dot {
+    animation: wordmark-pulse 2.6s ease-in-out infinite;
+  }
+}
+@keyframes wordmark-pulse {
+  50% {
+    transform: scale(1.25);
+    box-shadow: 0 0 22px var(--pink);
+  }
 }
 
 .no-scrollbar {

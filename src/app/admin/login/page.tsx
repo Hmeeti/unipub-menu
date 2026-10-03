@@ -10,7 +10,10 @@ export default async function LoginPage() {
     <main className="grid min-h-dvh place-items-center px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="wordmark text-pink text-4xl">unipub</div>
+          <div className="wordmark text-text text-4xl">
+            unipub
+            <span className="wordmark-dot" aria-hidden="true" />
+          </div>
           <p className="text-muted mt-2 text-[15px]">Вход для персонала</p>
         </div>
         <LoginForm />

@@ -76,9 +76,7 @@ export async function Header({ venue, locale, status }: Props) {
       <div className="mt-5 flex flex-col items-center text-center">
         <h1 className="wordmark text-text text-[3.25rem]">
           unipub
-          <span className="text-pink" aria-hidden="true">
-            .
-          </span>
+          <span className="wordmark-dot" aria-hidden="true" />
         </h1>
         <p className="text-gold mt-1 text-[14px]">{pick(venue.content.tagline, locale)}</p>
 

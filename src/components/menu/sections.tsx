@@ -15,7 +15,8 @@ export async function Splash({ serviceRateBp }: { serviceRateBp: number }) {
     >
       <div className="flex flex-col items-center gap-3 text-center">
         <p className="wordmark text-text text-6xl">
-          unipub<span className="text-pink">.</span>
+          unipub
+          <span className="wordmark-dot" aria-hidden="true" />
         </p>
         <div className="splash__line from-gold to-pink h-px w-40 origin-left bg-gradient-to-r" />
         <p className="text-gold text-[13px] tracking-[0.2em] uppercase">{t("tag")}</p>
