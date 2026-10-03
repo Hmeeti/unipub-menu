@@ -4,14 +4,10 @@ import { InstagramIcon, MapPinIcon, WhatsAppIcon } from "@/components/ui/brand-i
 import type { NativeLocale, PublicVenue } from "@/lib/domain/types";
 import type { OpenStatus } from "@/lib/domain/schedule";
 import { pick } from "@/lib/i18n/text";
-import { cn } from "@/lib/utils";
+import { cn, httpsOnly } from "@/lib/utils";
 import { ThemeToggle } from "./theme-toggle";
 
 const LOCALE_LABELS: Record<NativeLocale, string> = { ru: "РУС", kk: "ҚАЗ", en: "ENG" };
-
-function httpsOnly(url: string | undefined): string | null {
-  return url && url.startsWith("https://") ? url : null;
-}
 
 type Props = { venue: PublicVenue; locale: NativeLocale; status: OpenStatus };
 

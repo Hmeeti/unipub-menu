@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { BOOKING_MAX_DAYS, MAX_ORDER_LINES, MAX_QTY, TABLE_CODE_RE } from "@/lib/domain/limits";
 import { VENUE_TZ, parseHm, zonedParts } from "@/lib/domain/schedule";
+import { MAX_SPLIT_PEOPLE } from "@/lib/domain/split";
 
 export { BOOKING_MAX_DAYS, MAX_ORDER_LINES, MAX_QTY };
 
@@ -29,6 +30,20 @@ export const orderInputSchema = z.object({
     .regex(/^[a-z]{2,3}(-[A-Za-z]{2,4})?$/)
     .default("ru"),
   comment: z.string().trim().max(300).optional(),
+  split: z
+    .object({
+      people: z
+        .array(
+          z.object({
+            id: z.string().regex(/^[a-z0-9]{1,24}$/i),
+            name: z.string().trim().min(1).max(24),
+          }),
+        )
+        .min(2)
+        .max(MAX_SPLIT_PEOPLE),
+      assign: z.record(z.string().max(48), z.string().max(24)),
+    })
+    .optional(),
   confirmDuplicate: z.boolean().optional(),
   turnstileToken: z.string().max(4096).optional(),
   website: honeypot,

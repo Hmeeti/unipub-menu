@@ -6,5 +6,6 @@
 	}
 	reverse_proxy app-staging:3000 {
 		flush_interval -1
+		header_up X-Real-IP {client_ip}
 	}
 }

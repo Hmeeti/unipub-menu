@@ -7,6 +7,7 @@ const entries = {
   migrate: "scripts/migrate.ts",
   seed: "scripts/seed.ts",
   "create-admin": "scripts/create-admin.ts",
+  "telegram-webhook": "scripts/telegram-webhook.ts",
 };
 
 await build({

@@ -14,7 +14,10 @@ import {
   type MenuFilters,
 } from "@/lib/menu/filter";
 import type { MenuView, PromoView } from "@/lib/menu/view";
+import type { OrderStatusView } from "@/lib/orders/types";
+import { useOrderTracking } from "@/lib/orders/use-order-tracking";
 import { useCart } from "@/lib/store/cart";
+import { useOrders } from "@/lib/store/orders";
 import { usePrefs, type ViewMode } from "@/lib/store/prefs";
 import { flyToCart } from "@/lib/ui/fly-to-cart";
 import { vibrate } from "@/lib/utils";
@@ -28,9 +31,11 @@ import { Toolbar } from "./toolbar";
 const loadDish = () => import("./dish-sheet");
 const loadCart = () => import("./cart-sheet");
 const loadFilters = () => import("./filter-sheet");
+const loadOrder = () => import("./order-sheet");
 const DishSheet = dynamic(loadDish, { ssr: false });
 const CartSheet = dynamic(loadCart, { ssr: false });
 const FilterSheet = dynamic(loadFilters, { ssr: false });
+const OrderSheet = dynamic(loadOrder, { ssr: false });
 
 export const VIEW_COOKIE = "unipub_view";
 
@@ -68,6 +73,8 @@ export function MenuApp({ menu, promos, initialView, isOpenNow }: Props) {
   const [dish, setDish] = useState<{ id: string | null; open: boolean }>({ id: null, open: false });
   const [cartOpen, setCartOpen] = useState(false);
   const [cartMounted, setCartMounted] = useState(false);
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [orderMounted, setOrderMounted] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   /** remount key: every opening starts from the applied filters */
   const [filtersSession, setFiltersSession] = useState(0);
@@ -93,6 +100,7 @@ export function MenuApp({ menu, promos, initialView, isOpenNow }: Props) {
       useCart.getState().pruneUnavailable(new Set(itemsById.keys())),
     );
     void usePrefs.persist.rehydrate();
+    void useOrders.persist.rehydrate();
 
     const url = new URL(window.location.href);
     const token = url.searchParams.get("t");
@@ -130,6 +138,22 @@ export function MenuApp({ menu, promos, initialView, isOpenNow }: Props) {
     setCartMounted(true);
     setCartOpen(true);
   }, []);
+
+  const openOrder = useCallback(() => {
+    setOrderMounted(true);
+    setOrderOpen(true);
+  }, []);
+
+  const onOrdered = useCallback(
+    (order: OrderStatusView) => {
+      useOrders.getState().setLast(order);
+      setCartOpen(false);
+      void loadOrder().then(openOrder);
+    },
+    [openOrder],
+  );
+
+  useOrderTracking();
 
   const addToCart = useCallback(
     (id: string, from?: HTMLElement | null) => {
@@ -185,7 +209,7 @@ export function MenuApp({ menu, promos, initialView, isOpenNow }: Props) {
           onPickQuery={setQuery}
         />
       </main>
-      <CartBar onOpen={openCart} />
+      <CartBar onOpen={openCart} onOpenOrder={openOrder} />
       <Toaster />
       {dish.id ? (
         <DishSheet
@@ -195,7 +219,10 @@ export function MenuApp({ menu, promos, initialView, isOpenNow }: Props) {
           onOpenDish={openDish}
         />
       ) : null}
-      {cartMounted ? <CartSheet open={cartOpen} onOpenChange={setCartOpen} /> : null}
+      {cartMounted ? (
+        <CartSheet open={cartOpen} onOpenChange={setCartOpen} onOrdered={onOrdered} />
+      ) : null}
+      {orderMounted ? <OrderSheet open={orderOpen} onOpenChange={setOrderOpen} /> : null}
       {filtersSession ? (
         <FilterSheet
           key={filtersSession}

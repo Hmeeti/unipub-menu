@@ -1,8 +1,9 @@
 "use client";
 
 import { QrCode, Trash2, UserPlus, X } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useId, useRef, useState, type PointerEvent } from "react";
-import { useT } from "@/components/providers/i18n-provider";
+import { useLocale, useT } from "@/components/providers/i18n-provider";
 import { Sheet } from "@/components/ui/sheet";
 import { Stepper } from "@/components/ui/stepper";
 import { useToast } from "@/components/ui/toast";
@@ -12,10 +13,14 @@ import { MAX_SPLIT_PEOPLE, SHARED_ID, calcSplit, ownerOf } from "@/lib/domain/sp
 import { useCart } from "@/lib/store/cart";
 import { usePrefs } from "@/lib/store/prefs";
 import { useCartTotals, type PricedLine } from "@/lib/store/use-cart-totals";
+import { ANY_WAITER, type OrderStatusView } from "@/lib/orders/types";
 import { cn } from "@/lib/utils";
 import { useMenu } from "./menu-context";
+import { TABLE_INPUT_ID, useSubmitOrder } from "./use-submit-order";
 
-export const ANY_WAITER = "any";
+const Turnstile = dynamic(() => import("@/components/ui/turnstile").then((m) => m.Turnstile), {
+  ssr: false,
+});
 
 const SWIPE_DELETE_PX = 90;
 
@@ -115,7 +120,7 @@ function CartRow({ line, onRemove }: { line: PricedLine; onRemove: () => void })
 
 function TableField() {
   const t = useT();
-  const id = useId();
+  const id = TABLE_INPUT_ID;
   const table = useCart((s) => s.table);
   const token = useCart((s) => s.tableToken);
   const setTable = useCart((s) => s.setTable);
@@ -304,11 +309,16 @@ function WaiterPicker() {
 export default function CartSheet({
   open,
   onOpenChange,
+  onOrdered,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onOrdered: (order: OrderStatusView) => void;
 }) {
   const t = useT();
+  const locale = useLocale();
+  const { state: submitState, submit, onCaptchaToken } = useSubmitOrder(onOrdered);
+  const sending = submitState.kind === "sending";
   const { menu, isOpenNow } = useMenu();
   const { lines, totals, count } = useCartTotals();
   const remove = useCart((s) => s.remove);
@@ -354,13 +364,38 @@ export default function CartSheet({
       ) : !isOpenNow ? (
         <p className="text-muted text-center text-[13px]">{t("cart.closedNote")}</p>
       ) : null}
+      <div aria-live="assertive" className="empty:hidden">
+        {submitState.kind === "error" ||
+        submitState.kind === "duplicate" ||
+        submitState.kind === "captcha" ? (
+          <p className="text-danger text-center text-[14px] font-semibold">{submitState.message}</p>
+        ) : null}
+      </div>
+      {submitState.kind === "captcha" ? (
+        <Turnstile
+          siteKey={submitState.siteKey}
+          language={locale}
+          onToken={onCaptchaToken}
+          onExpire={() => undefined}
+        />
+      ) : null}
+      {submitState.kind === "duplicate" ? (
+        <button
+          type="button"
+          onClick={() => void submit({ confirmDuplicate: true })}
+          className="border-line-strong min-h-12 w-full rounded-2xl border px-4 text-base font-bold active:scale-[0.98]"
+        >
+          {t("order.duplicateConfirm")}
+        </button>
+      ) : null}
       <button
         type="button"
-        disabled={!count}
-        onClick={() => showToast({ message: t("cart.submitSoon") }, 5000)}
+        disabled={!count || sending || !menu.features.orders}
+        aria-busy={sending}
+        onClick={() => void submit()}
         className="bg-accent text-on-accent min-h-14 w-full rounded-2xl px-4 text-base font-bold tabular-nums active:scale-[0.98] disabled:opacity-50"
       >
-        {t("cart.submit", { total: formatPrice(totals.total) })}
+        {sending ? t("order.sending") : t("cart.submit", { total: formatPrice(totals.total) })}
       </button>
     </div>
   );

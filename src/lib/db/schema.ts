@@ -25,6 +25,7 @@ import type {
   OrderLine,
   MenuSnapshot,
 } from "@/lib/domain/types";
+import type { SplitPart } from "@/lib/domain/split";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: "date" });
 
@@ -177,6 +178,8 @@ export const orders = pgTable(
     total: integer("total").notNull(),
     serviceRateBp: integer("service_rate_bp").notNull(),
     comment: text("comment"),
+    /** per-person totals recomputed on the server; null when the bill is not split */
+    split: jsonb("split").$type<SplitPart[] | null>(),
     status: text("status").$type<OrderStatus>().notNull().default("queued"),
     acceptedBy: text("accepted_by"),
     acceptedByTg: bigint("accepted_by_tg", { mode: "number" }),

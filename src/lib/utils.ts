@@ -5,6 +5,11 @@ export function cn(...inputs: ClassValue[]) {
   return clsx(inputs);
 }
 
+/** External links rendered from admin-editable data must be https (no javascript:, http:, data:). */
+export function httpsOnly(url: string | null | undefined): string | null {
+  return url && url.startsWith("https://") ? url : null;
+}
+
 export function prefersReducedMotion(): boolean {
   return (
     typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches

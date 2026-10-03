@@ -22,6 +22,7 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:import-check": "tsx scripts/seed.ts --check",
     "admin:create": "tsx scripts/create-admin.ts",
+    "telegram:webhook": "tsx scripts/telegram-webhook.ts",
     "lhci": "lhci autorun"
   },
   "dependencies": {

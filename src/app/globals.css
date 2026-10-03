@@ -261,6 +261,33 @@
   }
 }
 
+/* Order success mark: ring then tick, drawn via stroke-dashoffset (pathLength="1" on the SVG). */
+.check-ring,
+.check-tick {
+  stroke-dasharray: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .check-ring {
+    animation: draw 0.5s var(--ease-out-soft) both;
+  }
+  .check-tick {
+    animation: draw 0.35s 0.4s var(--ease-out-soft) both;
+  }
+  .status-pulse {
+    animation: status-pulse 1.4s ease-in-out infinite;
+  }
+}
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes status-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
 /* prefers-reduced-motion disables every animation and transition, including JS-driven ones. */
 @media (prefers-reduced-motion: reduce) {
   *,

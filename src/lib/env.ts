@@ -33,7 +33,6 @@ const schema = z.object({
   TELEGRAM_API_ROOT: optionalString,
 
   WORKER_MODE: z.enum(["inline", "external"]).default("inline"),
-  TRUST_CLOUDFLARE: bool,
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(3).default(0),
 
   S3_ENDPOINT: optionalString,

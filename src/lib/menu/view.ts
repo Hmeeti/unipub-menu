@@ -9,6 +9,7 @@ import type {
 import { NATIVE_LOCALES } from "@/lib/domain/types";
 import { isScheduleActive } from "@/lib/domain/schedule";
 import { pick, pickList } from "@/lib/i18n/text";
+import { httpsOnly } from "@/lib/utils";
 
 /** Localized, price-resolved item as sent to the client (one language, no schedules). */
 export type ItemView = {
@@ -55,6 +56,7 @@ export type MenuView = {
   waiters: { id: string; name: string }[];
   features: PublicMenu["features"];
   popularQueries: string[];
+  reviewUrl: string | null;
 };
 
 export function toMenuView(menu: PublicMenu, locale: NativeLocale, now: Date): MenuView {
@@ -101,6 +103,7 @@ export function toMenuView(menu: PublicMenu, locale: NativeLocale, now: Date): M
     waiters: menu.waiters,
     features: menu.features,
     popularQueries: pickList(menu.venue.content.popularQueries, locale),
+    reviewUrl: httpsOnly(menu.venue.contacts.review2gis) ?? httpsOnly(menu.venue.contacts.map2gis),
   };
 }
 
@@ -117,6 +120,6 @@ export function activePromotions(menu: PublicMenu, locale: NativeLocale, now: Da
       body: pick(p.body, locale),
       itemId: p.itemId,
       image: p.image,
-      link: p.link && p.link.startsWith("https://") ? p.link : null,
+      link: httpsOnly(p.link),
     }));
 }

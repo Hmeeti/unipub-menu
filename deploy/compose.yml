@@ -28,6 +28,8 @@ services:
       DATABASE_URL: postgres://unipub:${POSTGRES_PASSWORD}@postgres:5432/unipub
       REDIS_URL: redis://redis:6379/0
       WORKER_MODE: external
+      # Caddy is the only hop; it sets X-Real-IP from CF-Connecting-IP (see Caddyfile).
+      TRUST_PROXY_HOPS: "1"
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
@@ -123,6 +125,7 @@ services:
       DATABASE_URL: postgres://unipub:${POSTGRES_PASSWORD}@postgres:5432/unipub_staging
       REDIS_URL: redis://redis:6379/1
       WORKER_MODE: inline
+      TRUST_PROXY_HOPS: "1"
       AUTO_MIGRATE: "true"
       APP_ENV: staging
     depends_on:
