@@ -241,7 +241,10 @@
     "back": "Back",
     "loading": "Loading…",
     "offline": "You are offline. The menu is available, but ordering needs a connection.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "callWaiterTitle": "Please call a waiter",
+    "callWaiterText": "Online ordering is unavailable right now. A waiter will take your order at the table.",
+    "callVenue": "Call {phone}"
   },
   "notFound": {
     "title": "Page not found",

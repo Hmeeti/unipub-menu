@@ -4,31 +4,25 @@ import { InstagramIcon, MapPinIcon, WhatsAppIcon } from "@/components/ui/brand-i
 import type { NativeLocale, PublicVenue } from "@/lib/domain/types";
 import type { OpenStatus } from "@/lib/domain/schedule";
 import { pick } from "@/lib/i18n/text";
+import { sitePath } from "@/lib/site";
 import { cn, httpsOnly } from "@/lib/utils";
+import { OpenBadge, type OpenBadgeText } from "./open-badge";
 import { ThemeToggle } from "./theme-toggle";
 
 const LOCALE_LABELS: Record<NativeLocale, string> = { ru: "РУС", kk: "ҚАЗ", en: "ENG" };
 
-type Props = { venue: PublicVenue; locale: NativeLocale; status: OpenStatus };
+type Props = { venue: PublicVenue; locale: NativeLocale; status: OpenStatus; now: Date };
 
-export async function Header({ venue, locale, status }: Props) {
+export async function Header({ venue, locale, status, now }: Props) {
   const t = await getTranslations("header");
   const c = venue.contacts;
-  const weekdays = t("weekdays").split("|");
-
-  let statusText: string;
-  if (status.open) statusText = t("openUntil", { time: status.closesAt });
-  else if (!status.opensAt) statusText = t("closed");
-  else {
-    const today = new Intl.DateTimeFormat("en-US", { timeZone: venue.timezone, weekday: "short" })
-      .formatToParts(new Date())
-      .find((p) => p.type === "weekday")?.value;
-    const todayIdx = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(today ?? "");
-    statusText =
-      status.opensWeekday === todayIdx || status.opensWeekday === null
-        ? t("opensAt", { time: status.opensAt })
-        : t("opensOn", { day: weekdays[status.opensWeekday] ?? "", time: status.opensAt });
-  }
+  const statusText: OpenBadgeText = {
+    openUntil: t.raw("openUntil") as string,
+    opensAt: t.raw("opensAt") as string,
+    opensOn: t.raw("opensOn") as string,
+    closed: t("closed"),
+    weekdays: t("weekdays").split("|"),
+  };
 
   const contacts = [
     c.phone
@@ -57,7 +51,7 @@ export async function Header({ venue, locale, status }: Props) {
           {(Object.keys(LOCALE_LABELS) as NativeLocale[]).map((l) => (
             <a
               key={l}
-              href={`/${l}`}
+              href={sitePath(`/${l}`)}
               hrefLang={l}
               lang={l}
               aria-current={l === locale ? "page" : undefined}
@@ -81,13 +75,13 @@ export async function Header({ venue, locale, status }: Props) {
         <p className="text-gold mt-1 text-[14px]">{pick(venue.content.tagline, locale)}</p>
 
         <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-          <span className="border-line bg-surface inline-flex min-h-11 items-center gap-2 rounded-full border px-3 text-[14px] font-semibold">
-            <span
-              className={cn("size-2 rounded-full", status.open ? "bg-success" : "bg-danger")}
-              aria-hidden="true"
-            />
-            {statusText}
-          </span>
+          <OpenBadge
+            initial={status}
+            initialAt={now.getTime()}
+            hours={venue.hours}
+            tz={venue.timezone}
+            text={statusText}
+          />
           {c.rating ? (
             <a
               href={httpsOnly(c.review2gis) ?? httpsOnly(c.map2gis) ?? undefined}

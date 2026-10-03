@@ -23,10 +23,12 @@ import {
   type PaymentMethod,
   type RequestStatusView,
 } from "@/lib/requests/types";
+import { BACKEND_AVAILABLE } from "@/lib/site";
 import { useCart } from "@/lib/store/cart";
 import { usePrefs } from "@/lib/store/prefs";
 import { useRequestUi } from "@/lib/store/requests-ui";
 import { cn } from "@/lib/utils";
+import { CallWaiter } from "./call-waiter";
 import { useMenu } from "./menu-context";
 import { TableField, focusTableInput } from "./table-field";
 
@@ -87,7 +89,7 @@ function Field({ id, title, children }: { id: string; title: string; children: R
 type FormState =
   | { kind: "idle" }
   | { kind: "sending" }
-  | { kind: "error"; message: string }
+  | { kind: "error"; message: string; offline?: boolean }
   | { kind: "captcha"; siteKey: string; message: string };
 
 function RequestForm({ type, onDone }: { type: GuestRequestType; onDone: () => void }) {
@@ -229,9 +231,9 @@ function RequestForm({ type, onDone }: { type: GuestRequestType; onDone: () => v
       case "origin":
         return error(t("order.errorInvalid"));
       case "network":
-        return error(t("order.errorNetwork"));
+        return setState({ kind: "error", message: t("order.errorNetwork"), offline: true });
       default:
-        return error(t("order.errorServer"));
+        return setState({ kind: "error", message: t("order.errorServer"), offline: true });
     }
   };
 
@@ -484,6 +486,7 @@ function RequestForm({ type, onDone }: { type: GuestRequestType; onDone: () => v
           <p className="text-danger text-center text-[14px] font-semibold">{state.message}</p>
         ) : null}
       </div>
+      {state.kind === "error" && state.offline ? <CallWaiter withText={false} /> : null}
       {state.kind === "captcha" ? (
         <Turnstile
           siteKey={state.siteKey}
@@ -521,7 +524,11 @@ export default function RequestSheet() {
       title={t(TITLES[shown])}
       closeLabel={t("common.close")}
     >
-      <RequestForm key={session} type={shown} onDone={close} />
+      {BACKEND_AVAILABLE ? (
+        <RequestForm key={session} type={shown} onDone={close} />
+      ) : (
+        <CallWaiter className="py-4" />
+      )}
     </Sheet>
   );
 }

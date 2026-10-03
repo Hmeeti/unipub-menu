@@ -48,7 +48,7 @@ export default async function PreviewPage({ params }: PageProps<"/[locale]/previ
           К публикации
         </Link>
       </div>
-      <Header venue={menu.venue} locale={locale} status={status} />
+      <Header venue={menu.venue} locale={locale} status={status} now={now} />
       <MenuApp
         menu={toMenuView(menu, locale, now)}
         promos={activePromotions(menu, locale, now)}

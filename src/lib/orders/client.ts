@@ -1,4 +1,5 @@
 import type { NativeLocale } from "@/lib/domain/types";
+import { apiUrl } from "@/lib/site";
 import type { OrderErrorBody, OrderErrorCode, OrderOkBody } from "./types";
 
 export type OrderPayload = {
@@ -30,7 +31,7 @@ export async function apiCall<T extends { ok: boolean }>(
 ): Promise<T | TransportError> {
   let res: Response;
   try {
-    res = await fetch(url, { credentials: "same-origin", cache: "no-store", ...init });
+    res = await fetch(apiUrl(url), { credentials: "same-origin", cache: "no-store", ...init });
   } catch {
     return { ok: false, error: "network" };
   }

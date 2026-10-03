@@ -15,6 +15,7 @@ import { usePrefs } from "@/lib/store/prefs";
 import { useCartTotals, type PricedLine } from "@/lib/store/use-cart-totals";
 import { ANY_WAITER, type OrderStatusView } from "@/lib/orders/types";
 import { cn } from "@/lib/utils";
+import { CallWaiter } from "./call-waiter";
 import { useMenu } from "./menu-context";
 import { TableField } from "./table-field";
 import { useSubmitOrder } from "./use-submit-order";
@@ -299,7 +300,7 @@ export default function CartSheet({
         </div>
       </dl>
       {!menu.features.orders ? (
-        <p className="text-muted text-center text-[13px]">{t("cart.ordersOff")}</p>
+        <CallWaiter />
       ) : !isOpenNow ? (
         <p className="text-muted text-center text-[13px]">{t("cart.closedNote")}</p>
       ) : null}
@@ -310,6 +311,7 @@ export default function CartSheet({
           <p className="text-danger text-center text-[14px] font-semibold">{submitState.message}</p>
         ) : null}
       </div>
+      {submitState.kind === "error" && submitState.offline ? <CallWaiter withText={false} /> : null}
       {submitState.kind === "captcha" ? (
         <Turnstile
           siteKey={submitState.siteKey}
@@ -327,15 +329,17 @@ export default function CartSheet({
           {t("order.duplicateConfirm")}
         </button>
       ) : null}
-      <button
-        type="button"
-        disabled={!count || sending || !menu.features.orders}
-        aria-busy={sending}
-        onClick={() => void submit()}
-        className="bg-accent text-on-accent min-h-14 w-full rounded-2xl px-4 text-base font-bold tabular-nums active:scale-[0.98] disabled:opacity-50"
-      >
-        {sending ? t("order.sending") : t("cart.submit", { total: formatPrice(totals.total) })}
-      </button>
+      {menu.features.orders ? (
+        <button
+          type="button"
+          disabled={!count || sending}
+          aria-busy={sending}
+          onClick={() => void submit()}
+          className="bg-accent text-on-accent min-h-14 w-full rounded-2xl px-4 text-base font-bold tabular-nums active:scale-[0.98] disabled:opacity-50"
+        >
+          {sending ? t("order.sending") : t("cart.submit", { total: formatPrice(totals.total) })}
+        </button>
+      ) : null}
     </div>
   );
 

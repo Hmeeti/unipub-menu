@@ -19,7 +19,7 @@ import { focusTableInput } from "./table-field";
 export type SubmitState =
   | { kind: "idle" }
   | { kind: "sending" }
-  | { kind: "error"; message: string }
+  | { kind: "error"; message: string; offline?: boolean }
   | { kind: "duplicate"; message: string }
   | { kind: "captcha"; siteKey: string; message: string };
 
@@ -135,9 +135,9 @@ export function useSubmitOrder(onOrdered: (order: OrderStatusView) => void) {
       case "origin":
         return error(t("order.errorInvalid"));
       case "network":
-        return error(t("order.errorNetwork"));
+        return setState({ kind: "error", message: t("order.errorNetwork"), offline: true });
       default:
-        return error(t("order.errorServer"));
+        return setState({ kind: "error", message: t("order.errorServer"), offline: true });
     }
   };
 

@@ -1,5 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { allowedOrigins, env } from "@/lib/env";
+import { PAGES_ORIGIN } from "@/lib/site";
 
 /**
  * Client IP as seen by the last trusted proxy. Caddy (behind Cloudflare) sets X-Real-IP to its
@@ -28,11 +29,14 @@ export function hashId(kind: string, value: string): string {
     .slice(0, 22);
 }
 
-/** Exact origin match (no patterns); browsers always send Origin on cross-site and POST fetches. */
+/**
+ * Guest API: exact origin match (no patterns); browsers always send Origin on cross-site and POST
+ * fetches. The static menu on GitHub Pages is the only foreign origin (CORS in `proxy.ts`).
+ */
 export function isAllowedOrigin(headers: Headers): boolean {
   const origin = headers.get("origin");
   if (!origin) return false;
-  return allowedOrigins().includes(origin);
+  return origin === PAGES_ORIGIN || allowedOrigins().includes(origin);
 }
 
 export const SESSION_COOKIE = "unipub_sid";

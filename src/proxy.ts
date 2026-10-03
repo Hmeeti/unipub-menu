@@ -2,6 +2,7 @@ import createMiddleware from "next-intl/middleware";
 import { NextRequest, NextResponse } from "next/server";
 import { routing } from "@/i18n/routing";
 import { env } from "@/lib/env";
+import { guestCorsHeaders } from "@/lib/http/cors";
 import { buildCsp, createNonce, cspOrigins } from "@/lib/security/csp";
 
 const intl = createMiddleware(routing);
@@ -23,7 +24,19 @@ function cspFor(nonce: string): string {
   });
 }
 
+function api(request: NextRequest) {
+  const cors = guestCorsHeaders(request.nextUrl.pathname, request.headers.get("origin"));
+  if (request.method === "OPTIONS") {
+    return new NextResponse(null, { status: cors ? 204 : 403, headers: cors ?? undefined });
+  }
+  const response = NextResponse.next();
+  cors?.forEach((value, key) => response.headers.set(key, value));
+  if (!cors) response.headers.set("vary", "Origin");
+  return response;
+}
+
 export function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/api/")) return api(request);
   const nonce = createNonce();
   const csp = cspFor(nonce);
   const headers = new Headers(request.headers);
@@ -41,5 +54,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|serwist|~offline|.*\\..*).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|serwist|~offline|.*\\..*).*)", "/api/:path*"],
 };

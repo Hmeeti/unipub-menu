@@ -13,6 +13,8 @@ import {
   buildSearchIndex,
   type MenuFilters,
 } from "@/lib/menu/filter";
+import { applyOverlay, type TimedOverlay } from "@/lib/menu/timed";
+import { useMinute } from "@/lib/menu/use-minute";
 import type { MenuView, PromoView } from "@/lib/menu/view";
 import type { OrderStatusView } from "@/lib/orders/types";
 import { useOrderTracking } from "@/lib/orders/use-order-tracking";
@@ -48,6 +50,8 @@ type Props = {
   promos: PromoView[];
   initialView: ViewMode;
   isOpenNow: boolean;
+  /** static build: recompute prices, promotions and opening state with the guest's clock */
+  overlay?: TimedOverlay;
 };
 
 function readDishFromUrl(): string | null {
@@ -65,8 +69,16 @@ function writeDishToUrl(id: string | null) {
   window.history.replaceState(window.history.state, "", url);
 }
 
-export function MenuApp({ menu, promos, initialView, isOpenNow }: Props) {
+export function MenuApp({ overlay, initialView, ...built }: Props) {
   const t = useT();
+  const minute = useMinute(Boolean(overlay));
+  const timed = useMemo(
+    () => (overlay && minute !== null ? applyOverlay(built.menu, overlay, new Date(minute)) : null),
+    [overlay, minute, built.menu],
+  );
+  const menu = timed?.menu ?? built.menu;
+  const promos = timed?.promos ?? built.promos;
+  const isOpenNow = timed ? timed.status.open : built.isOpenNow;
   const announce = useToast((s) => s.announce);
   const addLine = useCart((s) => s.add);
 
@@ -114,6 +126,14 @@ export function MenuApp({ menu, promos, initialView, isOpenNow }: Props) {
       const code = normalizeTableCode(token.split(".")[0]);
       if (code) useCart.getState().setQrTable(code, token);
       url.searchParams.delete("t");
+      window.history.replaceState(window.history.state, "", url);
+    }
+    // Printed QR codes of the first site: `?table=12`, a plain table number without a token.
+    const legacyTable = url.searchParams.get("table");
+    if (legacyTable !== null) {
+      const code = normalizeTableCode(legacyTable);
+      if (code && !token) useCart.getState().setTable(code);
+      url.searchParams.delete("table");
       window.history.replaceState(window.history.state, "", url);
     }
     const dishId = readDishFromUrl();

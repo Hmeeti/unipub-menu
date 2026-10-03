@@ -16,7 +16,8 @@ const securityHeaders = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 
-const nextConfig: NextConfig = {
+/** Backend: Next server with API, admin, bot webhook. Default target. */
+const serverConfig: NextConfig = {
   output: "standalone",
   poweredByHeader: false,
   reactStrictMode: true,
@@ -47,4 +48,28 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+/**
+ * Guest menu only, as static files for GitHub Pages (https://hmeeti.github.io/unipub-menu/).
+ * Only `*.pages.tsx` files are routes here, so the server pages, route handlers, proxy and
+ * instrumentation stay out of the export.
+ */
+const BASE_PATH = "/unipub-menu";
+const pagesConfig: NextConfig = {
+  output: "export",
+  basePath: BASE_PATH,
+  assetPrefix: `${BASE_PATH}/`,
+  trailingSlash: true,
+  pageExtensions: ["pages.tsx", "pages.ts"],
+  poweredByHeader: false,
+  reactStrictMode: true,
+  images: { unoptimized: true },
+  // Typed routes of this target omit the server pages, which then fail to type-check here;
+  // `npm run typecheck` (server target, all files) is the type gate.
+  typescript: { ignoreBuildErrors: true },
+  env: {
+    NEXT_PUBLIC_STATIC_EXPORT: "1",
+    NEXT_PUBLIC_BASE_PATH: BASE_PATH,
+  },
+};
+
+export default withNextIntl(process.env.BUILD_TARGET === "pages" ? pagesConfig : serverConfig);

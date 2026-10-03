@@ -1,4 +1,5 @@
 import { getLocale, getTranslations } from "next-intl/server";
+import { sitePath } from "@/lib/site";
 
 export default async function NotFound() {
   const locale = await getLocale();
@@ -15,7 +16,7 @@ export default async function NotFound() {
       <h1 className="mt-6 text-2xl font-extrabold">{t("title")}</h1>
       <p className="text-muted mt-2 text-[15px]">{t("text")}</p>
       <a
-        href={`/${locale}`}
+        href={sitePath(`/${locale}`)}
         className="bg-accent text-on-accent mt-6 inline-flex min-h-12 items-center rounded-2xl px-6 font-bold no-underline"
       >
         {t("toMenu")}

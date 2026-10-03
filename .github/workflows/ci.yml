@@ -104,7 +104,8 @@ jobs:
 
   image:
     name: Docker image
-    if: github.event_name == 'push'
+    # the backend server is set up separately; until then (variable DEPLOY_ENABLED unset) only checks run
+    if: github.event_name == 'push' && vars.DEPLOY_ENABLED == 'true'
     needs: [check, e2e]
     runs-on: ubuntu-latest
     permissions:

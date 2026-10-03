@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { apiUrl, BACKEND_AVAILABLE, STATIC_EXPORT } from "@/lib/site";
 
 const POLL_MS = 60_000;
 
@@ -10,25 +11,28 @@ type LiveBody = { ok: true; version: number; soldOut: string[] } | { ok: false }
 /**
  * Keeps an open page honest: the stop-list is refreshed every minute and when the tab becomes
  * visible again; a newly published menu version triggers a server refresh of the page.
+ * A static build cannot re-render, so it applies the live stop-list to its build-time snapshot.
  */
 export function useLiveSoldOut(version: number, initial: string[]): string[] {
   const router = useRouter();
   const [live, setLive] = useState<{ version: number; soldOut: string[] } | null>(null);
 
   useEffect(() => {
+    if (!BACKEND_AVAILABLE) return;
     let stopped = false;
     const check = async () => {
       if (document.visibilityState === "hidden") return;
       try {
-        const res = await fetch("/api/menu/live", { cache: "no-store" });
+        const res = await fetch(apiUrl("/api/menu/live"), { cache: "no-store" });
         const body = (await res.json()) as LiveBody;
         if (stopped || !body.ok) return;
-        if (body.version !== version) router.refresh();
+        if (body.version !== version && !STATIC_EXPORT) router.refresh();
         else setLive({ version: body.version, soldOut: body.soldOut });
       } catch {
         /* offline: keep what we have */
       }
     };
+    if (STATIC_EXPORT) void check();
     const onVisible = () => document.visibilityState === "visible" && void check();
     const timer = window.setInterval(() => void check(), POLL_MS);
     document.addEventListener("visibilitychange", onVisible);
@@ -39,5 +43,6 @@ export function useLiveSoldOut(version: number, initial: string[]): string[] {
     };
   }, [version, router]);
 
-  return live && live.version === version ? live.soldOut : initial;
+  if (!live) return initial;
+  return live.version === version || STATIC_EXPORT ? live.soldOut : initial;
 }

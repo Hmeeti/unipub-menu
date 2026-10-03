@@ -13,6 +13,7 @@ next-env.d.ts
 
 # local data & env
 /.data
+/.menu-snapshot.json
 .env
 .env.*
 !.env.example

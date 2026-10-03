@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { apiUrl } from "@/lib/site";
 import { isTrackable, useOrders } from "@/lib/store/orders";
 import { fetchOrderStatus } from "./client";
 import type { OrderStatusView } from "./types";
@@ -54,7 +55,7 @@ export function useOrderTracking() {
 
     if (typeof EventSource === "undefined") startPolling();
     else {
-      source = new EventSource(`/api/orders/${encodeURIComponent(publicId)}/events`);
+      source = new EventSource(apiUrl(`/api/orders/${encodeURIComponent(publicId)}/events`));
       firstEvent = window.setTimeout(startPolling, FIRST_EVENT_TIMEOUT_MS);
       source.addEventListener("status", (e) => {
         window.clearTimeout(firstEvent);
