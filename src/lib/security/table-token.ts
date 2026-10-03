@@ -1,13 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { TABLE_CODE_RE, normalizeTableCode } from "@/lib/domain/limits";
 
-/** Table codes: Latin letters and digits, 1–8 chars, stored upper-case (12, VIP1, V2). */
-export const TABLE_CODE_RE = /^[A-Z0-9]{1,8}$/;
-
-export function normalizeTableCode(raw: unknown): string | null {
-  if (typeof raw !== "string") return null;
-  const v = raw.trim().toUpperCase();
-  return TABLE_CODE_RE.test(v) ? v : null;
-}
+export { TABLE_CODE_RE, normalizeTableCode };
 
 function sign(secret: string, code: string, version: number) {
   return createHmac("sha256", secret)

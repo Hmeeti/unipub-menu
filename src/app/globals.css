@@ -1,26 +1,274 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens. Every color used by components comes from here; components never hardcode
+ * theme colors. The inline theme script always sets data-theme on <html> (stored choice or
+ * prefers-color-scheme), so the light palette lives in one block.
+ * Text/background pairs are checked for WCAG AA by tests/unit/contrast.test.ts.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+  --bg: #050508;
+  --bg-2: #0b0b11;
+  --surface: #111118;
+  --surface-2: #1a1a23;
+  --line: rgb(255 255 255 / 0.1);
+  --line-strong: rgb(255 255 255 / 0.18);
+  --text: #f8f4ee;
+  --muted: #a39d94;
+  --gold: #f0d5a0;
+  --gold-dim: #c9b48a;
+  --link: #f0d5a0;
+  --pink: #ff2a8a;
+  --pink-text: #ff5ca5;
+  --accent: #c91062;
+  --on-accent: #ffffff;
+  --success: #6ee7b7;
+  --danger: #ff7a87;
+  --overlay: rgb(0 0 0 / 0.62);
+  --glow-1: rgb(255 42 138 / 0.22);
+  --glow-2: rgb(240 213 160 / 0.1);
+  --shadow: 0 18px 50px rgb(0 0 0 / 0.55);
+  --shadow-soft: 0 8px 24px rgb(0 0 0 / 0.35);
+  --theme-color: #050508;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f3efe9;
+  --bg-2: #f8f5f0;
+  --surface: #ffffff;
+  --surface-2: #ebe5dc;
+  --line: rgb(28 22 16 / 0.12);
+  --line-strong: rgb(28 22 16 / 0.22);
+  --text: #17130f;
+  --muted: #5c554c;
+  --gold: #7a4d0b;
+  --gold-dim: #85602a;
+  --link: #8a2a00;
+  --pink: #d1166f;
+  --pink-text: #b0105c;
+  --accent: #c2105f;
+  --on-accent: #ffffff;
+  --success: #0b6e47;
+  --danger: #b4232f;
+  --overlay: rgb(23 19 15 / 0.45);
+  --glow-1: rgb(255 42 138 / 0.08);
+  --glow-2: rgb(196 150 70 / 0.12);
+  --shadow: 0 14px 36px rgb(28 22 16 / 0.12);
+  --shadow-soft: 0 6px 18px rgb(28 22 16 / 0.08);
+  --theme-color: #f3efe9;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-bg: var(--bg);
+  --color-bg-2: var(--bg-2);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-gold: var(--gold);
+  --color-gold-dim: var(--gold-dim);
+  --color-link: var(--link);
+  --color-pink: var(--pink);
+  --color-pink-text: var(--pink-text);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-overlay: var(--overlay);
+  --font-sans: var(--font-manrope), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-syne), var(--font-manrope), system-ui, sans-serif;
+  --shadow-card: var(--shadow-soft);
+  --shadow-sheet: var(--shadow);
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-padding-top: 7.5rem;
+    background: var(--bg);
+  }
+  body {
+    min-height: 100dvh;
+    background: linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 40%);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overflow-x: hidden;
+  }
+  a {
+    color: var(--link);
+  }
+  :focus-visible {
+    outline: 2px solid var(--pink);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  button,
+  [role="button"] {
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  input[type="search"]::-webkit-search-cancel-button {
+    appearance: none;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Two static glow blobs; animated only on large hover-capable screens with a visible tab. */
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ambient::before,
+.ambient::after {
+  content: "";
+  position: absolute;
+  border-radius: 50%;
+}
+.ambient::before {
+  width: 90vw;
+  height: 70vw;
+  max-width: 900px;
+  max-height: 700px;
+  top: -30vw;
+  left: 50%;
+  translate: -50% 0;
+  background: radial-gradient(closest-side, var(--glow-1), transparent);
+}
+.ambient::after {
+  width: 60vw;
+  height: 60vw;
+  max-width: 640px;
+  max-height: 640px;
+  bottom: -20vw;
+  right: -20vw;
+  background: radial-gradient(closest-side, var(--glow-2), transparent);
+}
+@media (min-width: 1024px) and (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :root:not([data-lite]) .ambient::before,
+  :root:not([data-lite]) .ambient::after {
+    filter: blur(60px);
+    animation: ambient-drift 24s var(--ease-out-soft) infinite alternate;
+  }
+  :root[data-hidden] .ambient::before,
+  :root[data-hidden] .ambient::after {
+    animation-play-state: paused;
+  }
+}
+@keyframes ambient-drift {
+  to {
+    transform: translate3d(3%, 4%, 0) scale(1.06);
+  }
+}
+
+/* Splash: server-rendered, shown only when the head script decides so (first visit / 24h). */
+.splash {
+  display: none;
+}
+:root[data-splash] .splash {
+  display: grid;
+}
+:root[data-splash] body {
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .splash__line {
+    animation: splash-line 0.9s var(--ease-out-soft) both;
+  }
+  .splash.is-leaving {
+    animation: fade-out 0.25s ease both;
+  }
+}
+@keyframes splash-line {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Bottom sheet */
+@media (prefers-reduced-motion: no-preference) {
+  .sheet[data-state="open"] {
+    animation: sheet-in 0.32s var(--ease-out-soft);
+  }
+  .sheet[data-state="closed"] {
+    animation: sheet-out 0.2s ease-in;
+  }
+  .sheet-overlay[data-state="open"] {
+    animation: fade-in 0.25s ease;
+  }
+  .sheet-overlay[data-state="closed"] {
+    animation: fade-out 0.2s ease;
+  }
+  .pop-in {
+    animation: pop-in 0.22s var(--ease-out-soft);
+  }
+  .toast-in {
+    animation: toast-in 0.25s var(--ease-out-soft);
+  }
+}
+@keyframes sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes sheet-out {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pop-in {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+}
+@keyframes toast-in {
+  from {
+    transform: translateY(12px);
+    opacity: 0;
+  }
+}
+
+/* prefers-reduced-motion disables every animation and transition, including JS-driven ones. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

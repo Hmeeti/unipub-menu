@@ -1,0 +1,168 @@
+{
+  "meta": {
+    "title": "UNIPUB — karaoke bar menu in Taraz",
+    "description": "UNIPUB digital menu: starters, grill, sets, cocktails and VIP karaoke rooms. Order right from your table.",
+    "skipToMenu": "Skip to menu"
+  },
+  "header": {
+    "openUntil": "Open until {time}",
+    "opensAt": "Opens at {time}",
+    "opensOn": "Opens {day} at {time}",
+    "closed": "Closed now",
+    "rating": "2GIS rating and number of reviews:",
+    "call": "Call",
+    "map": "Open in 2GIS",
+    "instagram": "Instagram",
+    "whatsapp": "WhatsApp",
+    "language": "Language",
+    "themeToLight": "Switch to light theme",
+    "themeToDark": "Switch to dark theme",
+    "weekdays": "on Sunday|on Monday|on Tuesday|on Wednesday|on Thursday|on Friday|on Saturday"
+  },
+  "nav": {
+    "categories": "Menu sections",
+    "favorites": "Favorites"
+  },
+  "search": {
+    "label": "Search the menu",
+    "placeholder": "Search the menu",
+    "clear": "Clear search",
+    "recent": "Recent searches",
+    "popular": "Popular",
+    "found": "Found: {count}",
+    "empty": "Nothing found. Try another word:",
+    "resetFilters": "Reset filters"
+  },
+  "filters": {
+    "open": "Filters",
+    "openWithCount": "Filters, {count} selected",
+    "title": "Filters and sorting",
+    "flags": "Show",
+    "excludeAllergens": "Exclude allergens",
+    "sort": "Sort by",
+    "sortDefault": "Default",
+    "sortPriceAsc": "Price: low to high",
+    "sortPriceDesc": "Price: high to low",
+    "sortHits": "Bestsellers first",
+    "show": "Show · {count}",
+    "reset": "Reset",
+    "removeChip": "Remove filter “{label}”",
+    "without": "no {label}"
+  },
+  "flags": {
+    "hit": "Bestseller",
+    "new": "New",
+    "spicy": "Spicy",
+    "veg": "Vegetarian",
+    "gf": "Gluten-free",
+    "share": "To share"
+  },
+  "item": {
+    "add": "Add “{name}” to cart",
+    "increase": "Add one more “{name}”",
+    "decrease": "Remove one “{name}”",
+    "inCart": "In cart: {count}",
+    "soldOut": "Sold out",
+    "favoriteAdd": "Add “{name}” to favorites",
+    "favoriteRemove": "Remove “{name}” from favorites",
+    "weight": "Portion",
+    "cookTime": "Time",
+    "ingredients": "Ingredients",
+    "allergens": "Allergens",
+    "noAllergens": "No listed allergens",
+    "spicy": "Spiciness",
+    "pairWith": "Goes well with",
+    "toOrder": "Add · {price}",
+    "oldPrice": "Old price {price}",
+    "share": "Share",
+    "linkCopied": "Link copied",
+    "openPhoto": "Open photo",
+    "details": "More about “{name}”",
+    "close": "Close",
+    "photoFallback": "Photo coming soon"
+  },
+  "view": {
+    "grid": "Grid",
+    "list": "List",
+    "label": "Show menu as"
+  },
+  "cart": {
+    "bar": "Cart · {count} · {total}",
+    "open": "Open cart: {count} items, total {total}",
+    "title": "Your order",
+    "empty": "Your cart is empty — add something tasty",
+    "subtotal": "Subtotal",
+    "service": "Service {percent}%",
+    "total": "Total",
+    "clear": "Clear",
+    "remove": "Remove “{name}”",
+    "removed": "Removed: {name}",
+    "undo": "Undo",
+    "table": "Table",
+    "tablePlaceholder": "e.g. 12 or VIP1",
+    "tableFromQr": "Table {table} — from QR code",
+    "tableChange": "Change",
+    "tableInvalid": "Table number: up to 8 Latin letters and digits",
+    "comment": "Note for the kitchen",
+    "commentPlaceholder": "No onion, sauce on the side…",
+    "waiterTitle": "Who is your waiter?",
+    "waiterUnknown": "Not sure",
+    "submit": "Place order · {total}",
+    "submitSoon": "Online ordering is coming soon. Show this cart to your waiter.",
+    "ordersOff": "Online ordering is unavailable right now — please call a waiter",
+    "closedNote": "The bar is closed now; you can order once we open",
+    "added": "“{name}” added to cart"
+  },
+  "split": {
+    "on": "Split the bill",
+    "off": "Don't split",
+    "addPerson": "Add person",
+    "removePerson": "Remove “{name}”",
+    "shared": "Shared",
+    "me": "Me",
+    "person": "Guest {n}",
+    "rename": "Name",
+    "maxPeople": "Up to 8 people",
+    "who": "Whose is “{name}”?",
+    "perPerson": "Amount per person",
+    "personTotal": "{name}: {total}",
+    "hint": "Tap the name next to an item to choose who pays. “Shared” is split equally."
+  },
+  "karaoke": {
+    "title": "Karaoke",
+    "orderSong": "Request a song",
+    "rulesTitle": "Queue rules",
+    "soon": "Song requests open very soon"
+  },
+  "rules": {
+    "title": "House rules"
+  },
+  "promo": {
+    "dishOfDay": "Dish of the day",
+    "label": "Promotions"
+  },
+  "footer": {
+    "address": "Address",
+    "hours": "Daily {open}–{close}",
+    "contacts": "Contacts",
+    "privacy": "Privacy policy",
+    "reviews": "Leave a review on 2GIS"
+  },
+  "splash": {
+    "tag": "Karaoke Bar & Restaurant",
+    "fee": "Service charge {percent}%",
+    "skip": "Tap to continue"
+  },
+  "common": {
+    "close": "Close",
+    "back": "Back",
+    "loading": "Loading…",
+    "offline": "You are offline. The menu is available, but ordering needs a connection.",
+    "retry": "Retry"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "text": "The link may be outdated. The menu is always here:",
+    "toMenu": "Open the menu"
+  }
+}

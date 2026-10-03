@@ -1,15 +1,14 @@
 import { z } from "zod";
+import { BOOKING_MAX_DAYS, MAX_ORDER_LINES, MAX_QTY, TABLE_CODE_RE } from "@/lib/domain/limits";
 import { VENUE_TZ, parseHm, zonedParts } from "@/lib/domain/schedule";
 
-export const MAX_ORDER_LINES = 40;
-export const MAX_QTY = 30;
-export const BOOKING_MAX_DAYS = 60;
+export { BOOKING_MAX_DAYS, MAX_ORDER_LINES, MAX_QTY };
 
 const tableCode = z
   .string()
   .trim()
   .transform((v) => v.toUpperCase())
-  .pipe(z.string().regex(/^[A-Z0-9]{1,8}$/, "table_code"));
+  .pipe(z.string().regex(TABLE_CODE_RE, "table_code"));
 
 const itemId = z.string().regex(/^[a-z0-9][a-z0-9_-]{0,47}$/i, "item_id");
 
