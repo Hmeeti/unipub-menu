@@ -3,7 +3,7 @@ import { hasLocale } from "next-intl";
 import { setRequestLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { LocaleDocument, localeMetadata, localeViewport } from "@/components/menu/locale-document";
+import { LocaleDocument, localeMetadata, localeViewport } from "@/app/locale-document";
 import { routing } from "@/i18n/routing";
 import { PAGES_ORIGIN, STATIC_ASSETS } from "@/lib/static-menu";
 import "../globals.css";
