@@ -336,3 +336,24 @@
   `js/*.js?v=29`, `css/style.css` и `data/menu.json` отдают заглушки вместо 404,
   `js/app.js` один раз отправляет на новое меню. Старый код — ветка `legacy-v1`, тег
   `v1-old`.
+
+## Бэкенд на Render
+
+- **Blueprint `render.yaml`:** веб-сервис из `Dockerfile` (Free, Франкфурт), Render Key
+  Value (Free, только внутренняя сеть) и Render Postgres (Free, только внутренняя сеть).
+  Секреты `APP_SECRET`, `TABLE_TOKEN_SECRET`, `DATA_ENCRYPTION_KEY`,
+  `TELEGRAM_WEBHOOK_SECRET` генерирует Render; токен бота, чат и первый владелец
+  вводятся в дашборде, в репозитории их нет.
+- **Без shell.** На Free нет консоли и one-off задач, поэтому при старте сервера:
+  миграции (`AUTO_MIGRATE`), импорт меню в пустую БД (`SEED_IF_EMPTY`), владелец из
+  `ADMIN_LOGIN`/`ADMIN_PASSWORD`, только пока админов нет, и вебхук Telegram
+  (`TELEGRAM_AUTO_WEBHOOK`, пропускается, если URL уже тот же). Сгенерированный base64
+  секрет вебхука приводится к base64url — Telegram принимает только `A-Z a-z 0-9 _ -`.
+- **`APP_URL`** по умолчанию берётся из `RENDER_EXTERNAL_URL`.
+- **IP клиента.** Render только дописывает `X-Forwarded-For`, а `X-Real-IP` от клиента
+  проходит насквозь — поэтому `CLIENT_IP_HEADER=x-forwarded-for` и берётся последний
+  адрес цепочки.
+- **Ограничения Free:** сервис засыпает после 15 минут без запросов (первый запрос будит
+  его примерно за минуту; статическое меню при открытии само шлёт `/api/menu/live`);
+  Free Postgres удаляется через 30 дней + 14 дней льготы — до этого перейти на платный
+  план или указать другой `DATABASE_URL`.

@@ -8,9 +8,9 @@ import { PAGES_ORIGIN } from "@/lib/site";
  * everyone shares one key.
  */
 export function clientIp(headers: Headers): string {
-  const hops = env().TRUST_PROXY_HOPS;
+  const { TRUST_PROXY_HOPS: hops, CLIENT_IP_HEADER: source } = env();
   if (hops > 0) {
-    const real = headers.get("x-real-ip")?.trim();
+    const real = source === "x-real-ip" ? headers.get("x-real-ip")?.trim() : undefined;
     if (real) return real;
     const chain = (headers.get("x-forwarded-for") ?? "")
       .split(",")

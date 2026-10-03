@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { PublicMenu } from "@/lib/domain/types";
+import { __resetEnvForTests, env } from "@/lib/env";
 import { guestCorsHeaders } from "@/lib/http/cors";
+import { clientIp } from "@/lib/http/request";
 import { applyOverlay, timedOverlay } from "@/lib/menu/timed";
 import { activePromotions, toMenuView } from "@/lib/menu/view";
 
@@ -82,6 +84,32 @@ describe("static menu time overlay", () => {
     expect(res.promos.map((p) => p.id)).toEqual([1]);
     expect(res.status).toEqual({ open: true, closesAt: "02:00" });
     expect(applyOverlay(view, overlay, built).status.open).toBe(false);
+  });
+});
+
+describe("env on Render", () => {
+  const saved = { ...process.env };
+  afterEach(() => {
+    process.env = { ...saved };
+    __resetEnvForTests();
+  });
+
+  it("takes APP_URL from RENDER_EXTERNAL_URL and makes the webhook secret Telegram-safe", () => {
+    delete process.env.APP_URL;
+    process.env.RENDER_EXTERNAL_URL = "https://unipub-api.onrender.com";
+    process.env.TELEGRAM_WEBHOOK_SECRET = "ab+cd/ef0123456789xyz=";
+    __resetEnvForTests();
+    expect(env().APP_URL).toBe("https://unipub-api.onrender.com");
+    expect(env().TELEGRAM_WEBHOOK_SECRET).toBe("ab-cd_ef0123456789xyz");
+    expect(env().TELEGRAM_WEBHOOK_SECRET).toMatch(/^[A-Za-z0-9_-]{16,256}$/);
+  });
+
+  it("ignores a spoofable X-Real-IP when the platform only appends X-Forwarded-For", () => {
+    process.env.TRUST_PROXY_HOPS = "1";
+    process.env.CLIENT_IP_HEADER = "x-forwarded-for";
+    __resetEnvForTests();
+    const h = new Headers({ "x-real-ip": "6.6.6.6", "x-forwarded-for": "6.6.6.6, 203.0.113.9" });
+    expect(clientIp(h)).toBe("203.0.113.9");
   });
 });
 

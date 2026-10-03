@@ -34,6 +34,8 @@ const schema = z.object({
 
   WORKER_MODE: z.enum(["inline", "external"]).default("inline"),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(3).default(0),
+  /** Caddy sets X-Real-IP; platforms like Render only append to X-Forwarded-For. */
+  CLIENT_IP_HEADER: z.enum(["x-real-ip", "x-forwarded-for"]).default("x-real-ip"),
 
   S3_ENDPOINT: optionalString,
   S3_REGION: z.string().default("auto"),
@@ -61,6 +63,12 @@ const schema = z.object({
   FEATURE_PROMOS: z.enum(["on", "off"]).default("on"),
 
   E2E_TEST_HOOKS: bool,
+
+  // Hosts without a shell (Render Free): first-run setup happens on server start.
+  SEED_IF_EMPTY: bool,
+  ADMIN_LOGIN: optionalString,
+  ADMIN_PASSWORD: optionalString,
+  TELEGRAM_AUTO_WEBHOOK: bool,
 });
 
 export type Env = z.infer<typeof schema>;
@@ -71,7 +79,11 @@ const DEV_SECRET = "dev-only-secret-change-me-dev-only-secret-change-me";
 
 export function env(): Env {
   if (cached) return cached;
-  const parsed = schema.safeParse(process.env);
+  const parsed = schema.safeParse({
+    ...process.env,
+    // Render sets RENDER_EXTERNAL_URL (https://<service>.onrender.com) for every web service.
+    APP_URL: process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || undefined,
+  });
   if (!parsed.success) {
     throw new Error(`Invalid environment: ${z.prettifyError(parsed.error)}`);
   }
@@ -95,6 +107,10 @@ export function env(): Env {
   }
   cached = {
     ...value,
+    // Telegram accepts only A-Z a-z 0-9 _ -; generated base64 secrets are mapped to base64url.
+    TELEGRAM_WEBHOOK_SECRET: value.TELEGRAM_WEBHOOK_SECRET?.replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, ""),
     APP_SECRET: value.APP_SECRET ?? DEV_SECRET,
     TABLE_TOKEN_SECRET: value.TABLE_TOKEN_SECRET ?? value.APP_SECRET ?? DEV_SECRET,
   };
