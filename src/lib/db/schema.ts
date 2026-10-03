@@ -275,6 +275,7 @@ export const adminUsers = pgTable("admin_users", {
   name: text("name").notNull(),
   passwordHash: text("password_hash").notNull(),
   role: text("role").$type<AdminRole>().notNull().default("manager"),
+  /** AES-256-GCM sealed (DATA_ENCRYPTION_KEY) */
   totpSecret: text("totp_secret"),
   totpEnabled: boolean("totp_enabled").notNull().default(false),
   telegramUserId: bigint("telegram_user_id", { mode: "number" }).unique(),
@@ -286,11 +287,11 @@ export const adminUsers = pgTable("admin_users", {
 export const adminSessions = pgTable(
   "admin_sessions",
   {
+    /** sha256 of the cookie token: a database dump does not yield usable sessions */
     id: text("id").primaryKey(),
     userId: integer("user_id")
       .notNull()
       .references(() => adminUsers.id, { onDelete: "cascade" }),
-    csrfSecret: text("csrf_secret").notNull(),
     createdAt: ts("created_at").notNull().defaultNow(),
     expiresAt: ts("expires_at").notNull(),
     lastSeenAt: ts("last_seen_at").notNull().defaultNow(),

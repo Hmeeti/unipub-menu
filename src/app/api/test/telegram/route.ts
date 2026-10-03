@@ -1,7 +1,9 @@
 import { asc, eq, isNotNull } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 import { getDb } from "@/lib/db/client";
-import { venue, waiters } from "@/lib/db/schema";
+import { normalizeLogin } from "@/lib/admin/auth";
+import { adminUsers, venue, waiters, type AdminRole } from "@/lib/db/schema";
+import { hashPassword } from "@/lib/security/password";
 import { env } from "@/lib/env";
 import { json } from "@/lib/http/request";
 import { getKv } from "@/lib/kv/kv";
@@ -13,7 +15,8 @@ const E2E_STAFF_TG_ID = 777_000_777;
 
 /**
  * E2E-only hooks (E2E_TEST_HOOKS=true, refused in production by env validation):
- * read the mocked Telegram traffic, press inline buttons as staff, open the venue around the clock.
+ * read the mocked Telegram traffic, press inline buttons as staff, open the venue around the clock,
+ * create an admin account.
  */
 function enabled() {
   return env().E2E_TEST_HOOKS && env().APP_ENV !== "production";
@@ -26,7 +29,14 @@ export async function GET() {
 
 export async function POST(req: Request) {
   if (!enabled()) return new Response(null, { status: 404 });
-  const body = (await req.json()) as { action: string; data?: string; messageId?: number };
+  const body = (await req.json()) as {
+    action: string;
+    data?: string;
+    messageId?: number;
+    login?: string;
+    password?: string;
+    role?: AdminRole;
+  };
   const db = await getDb();
   const kv = await getKv();
 
@@ -35,6 +45,24 @@ export async function POST(req: Request) {
     await db.update(venue).set({ hours: allDay }).where(eq(venue.id, 1));
     await publishMenu(db, { note: "e2e: open 24/7" });
     revalidateTag(MENU_TAG, { expire: 0 });
+    return json({ ok: true });
+  }
+
+  if (body.action === "admin" && body.login && body.password && body.role) {
+    const login = normalizeLogin(body.login);
+    const passwordHash = await hashPassword(body.password);
+    const values = {
+      name: `E2E ${body.role}`,
+      passwordHash,
+      role: body.role,
+      isActive: true,
+      totpEnabled: false,
+      totpSecret: null,
+    };
+    await db
+      .insert(adminUsers)
+      .values({ login, ...values })
+      .onConflictDoUpdate({ target: adminUsers.login, set: values });
     return json({ ok: true });
   }
 

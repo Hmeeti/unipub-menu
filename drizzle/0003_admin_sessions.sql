@@ -1,0 +1,1 @@
+ALTER TABLE "admin_sessions" DROP COLUMN "csrf_secret";

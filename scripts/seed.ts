@@ -8,6 +8,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { count, inArray, sql } from "drizzle-orm";
+import { normalizeLogin } from "@/lib/admin/auth";
 import { closeDb, getDb } from "@/lib/db/client";
 import { itemAllergens, items, adminUsers } from "@/lib/db/schema";
 import {
@@ -61,7 +62,7 @@ async function main() {
   }
   console.log(version ? `Опубликована версия меню #${version.id}` : "Без публикации");
 
-  const login = process.env.ADMIN_LOGIN;
+  const login = process.env.ADMIN_LOGIN ? normalizeLogin(process.env.ADMIN_LOGIN) : undefined;
   const password = process.env.ADMIN_PASSWORD;
   if (login && password) {
     if (password.length < MIN_PASSWORD_LENGTH)

@@ -4,12 +4,14 @@
  * The password is read from ADMIN_PASSWORD (never from argv, so it does not land in shell history).
  */
 import { eq } from "drizzle-orm";
+import { normalizeLogin } from "@/lib/admin/auth";
 import { closeDb, getDb } from "@/lib/db/client";
 import { adminSessions, adminUsers, type AdminRole } from "@/lib/db/schema";
 import { hashPassword, MIN_PASSWORD_LENGTH } from "@/lib/security/password";
 
 async function main() {
-  const [login, role = "manager", ...nameParts] = process.argv.slice(2);
+  const [rawLogin, role = "manager", ...nameParts] = process.argv.slice(2);
+  const login = rawLogin ? normalizeLogin(rawLogin) : "";
   const password = process.env.ADMIN_PASSWORD;
   if (!login || !["owner", "manager", "waiter"].includes(role)) {
     throw new Error("usage: create-admin <login> <owner|manager|waiter> [name]");

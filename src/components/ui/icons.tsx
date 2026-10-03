@@ -1,18 +1,28 @@
 import {
+  Beef,
+  Beer,
   CakeSlice,
+  Coffee,
   CupSoda,
+  Drumstick,
+  Fish,
   Flame,
   Heart,
+  IceCreamCone,
   Layers,
   Leaf,
   Martini,
   Mic,
+  Pizza,
   Salad,
+  Sandwich,
+  Soup,
   Sparkles,
   Star,
   Users,
   UtensilsCrossed,
   WheatOff,
+  Wine,
   type LucideIcon,
 } from "lucide-react";
 import type { ItemFlag } from "@/lib/domain/types";
@@ -27,7 +37,20 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   mic: Mic,
   cake: CakeSlice,
   heart: Heart,
+  soup: Soup,
+  pizza: Pizza,
+  beef: Beef,
+  fish: Fish,
+  drumstick: Drumstick,
+  sandwich: Sandwich,
+  coffee: Coffee,
+  beer: Beer,
+  wine: Wine,
+  "ice-cream": IceCreamCone,
 };
+
+/** Choices offered in the admin category editor ("heart" is reserved for favourites). */
+export const CATEGORY_ICON_NAMES = Object.keys(CATEGORY_ICONS).filter((k) => k !== "heart");
 
 export function CategoryIcon({ name, className }: { name: string; className?: string }) {
   const Icon = CATEGORY_ICONS[name] ?? UtensilsCrossed;

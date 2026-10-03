@@ -21,6 +21,10 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
   deploymentId: process.env.DEPLOYMENT_VERSION || undefined,
+  experimental: {
+    // photo uploads in the admin (8 MB file + multipart overhead)
+    serverActions: { bodySizeLimit: "9mb" },
+  },
   serverExternalPackages: [
     "@electric-sql/pglite",
     "pino",

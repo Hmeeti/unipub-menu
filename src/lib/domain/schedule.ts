@@ -63,7 +63,7 @@ export function formatHm(minutes: number): string {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
 
-function addDaysYmd(ymd: string, delta: number): string {
+export function addDaysYmd(ymd: string, delta: number): string {
   const d = new Date(`${ymd}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + delta);
   return d.toISOString().slice(0, 10);
