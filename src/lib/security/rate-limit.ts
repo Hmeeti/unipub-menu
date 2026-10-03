@@ -38,14 +38,25 @@ export const ORDER_LIMITS = {
   ],
 };
 
+/** Bookings have no table, so only session and IP apply; typed tables get half the table quota. */
 export const REQUEST_LIMITS = (
   type: string,
-  ids: { table: string; session: string; ip: string },
+  ids: { table: string | null; verified: boolean; session: string; ip: string },
 ): LimitRule[] => {
   const perSession = type === "booking" ? 3 : type === "song" ? 6 : 4;
+  const perTable = ids.verified ? perSession + 2 : Math.ceil(perSession / 2);
   return [
     { name: "session", key: `req:${type}:s:${ids.session}`, limit: perSession, windowMs: 15 * MIN },
-    { name: "table", key: `req:${type}:t:${ids.table}`, limit: perSession + 2, windowMs: 15 * MIN },
+    ...(ids.table
+      ? [
+          {
+            name: "table",
+            key: `req:${type}:${ids.verified ? "t" : "ut"}:${ids.table}`,
+            limit: perTable,
+            windowMs: 15 * MIN,
+          },
+        ]
+      : []),
     { name: "ip", key: `req:ip:${ids.ip}`, limit: 60, windowMs: 10 * MIN },
   ];
 };

@@ -57,13 +57,13 @@ function fingerprint(table: string, lines: { itemId: string; qty: number }[]): s
   return createHash("sha256").update(`${table}|${key}`).digest("base64url").slice(0, 22);
 }
 
-async function resolveTable(
+export type TableError = "table_token_invalid" | "table_required" | "table_unknown";
+
+export async function resolveTable(
   db: Db,
   input: Pick<OrderInput, "tableToken" | "tableCode">,
   secret: string,
-): Promise<
-  { ok: true; code: string; verified: boolean } | { ok: false; error: OrderErrorBody["error"] }
-> {
+): Promise<{ ok: true; code: string; verified: boolean } | { ok: false; error: TableError }> {
   if (input.tableToken) {
     const parsed = verifyTableToken(secret, input.tableToken);
     if (!parsed) return { ok: false, error: "table_token_invalid" };

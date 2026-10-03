@@ -1,34 +1,8 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
-
-type Button = { text: string; callback_data: string };
-type Call = {
-  method: string;
-  payload: { text?: string; reply_markup?: { inline_keyboard: Button[][] } };
-};
-
-async function telegramCalls(request: APIRequestContext): Promise<Call[]> {
-  const res = await request.get("/api/test/telegram");
-  return ((await res.json()) as { calls: Call[] }).calls;
-}
-
-async function waitForCall(request: APIRequestContext, match: (c: Call) => boolean): Promise<Call> {
-  let found: Call | undefined;
-  await expect
-    .poll(
-      async () => {
-        found = [...(await telegramCalls(request))].reverse().find(match);
-        return Boolean(found);
-      },
-      { timeout: 15_000 },
-    )
-    .toBe(true);
-  return found!;
-}
+import { expect, test } from "@playwright/test";
+import { openVenueAndSkipSplash, telegramCalls, waitForCall, type Call } from "./helpers";
 
 test.beforeEach(async ({ page, request }) => {
-  await page.addInitScript(() => localStorage.setItem("unipub:splash", String(Date.now())));
-  const res = await request.post("/api/test/telegram", { data: { action: "open" } });
-  expect(res.ok()).toBe(true);
+  await openVenueAndSkipSplash(page, request);
 });
 
 test("guest orders, staff accepts in Telegram, the guest sees it live", async ({

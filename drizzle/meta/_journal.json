@@ -15,6 +15,13 @@
       "when": 1791035335499,
       "tag": "0001_order_split",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791036481036,
+      "tag": "0002_request_fields",
+      "breakpoints": true
     }
   ]
 }

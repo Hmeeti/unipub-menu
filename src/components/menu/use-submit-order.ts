@@ -14,8 +14,7 @@ import { ANY_WAITER, type OrderStatusView } from "@/lib/orders/types";
 import { useCart } from "@/lib/store/cart";
 import { usePrefs } from "@/lib/store/prefs";
 import { useMenu } from "./menu-context";
-
-export const TABLE_INPUT_ID = "cart-table";
+import { focusTableInput } from "./table-field";
 
 export type SubmitState =
   | { kind: "idle" }
@@ -77,9 +76,7 @@ export function useSubmitOrder(onOrdered: (order: OrderStatusView) => void) {
     };
   }, [itemsById, soldOut, locale, t]);
 
-  /** after a token reset the input appears only on the next render */
-  const focusTable = () =>
-    requestAnimationFrame(() => document.getElementById(TABLE_INPUT_ID)?.focus());
+  const focusTable = focusTableInput;
 
   const handleError = (res: Exclude<ClientResult, { ok: true }>) => {
     const error = (message: string) => setState({ kind: "error", message });

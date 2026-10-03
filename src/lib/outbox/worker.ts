@@ -1,11 +1,13 @@
 import { and, asc, eq, inArray, lt, lte, or, sql } from "drizzle-orm";
 import { GrammyError } from "grammy";
 import type { Db } from "@/lib/db/client";
-import { orders, outbox } from "@/lib/db/schema";
+import { guestRequests, orders, outbox } from "@/lib/db/schema";
 import type { Kv } from "@/lib/kv/kv";
 import { log } from "@/lib/log";
 import { findById, OUTBOX_WAKE, publishStatus } from "@/lib/orders/service";
 import { formatReminder, mainKeyboard, type InlineKeyboard } from "@/lib/orders/telegram-text";
+import { findRequestById, renderRequest } from "@/lib/requests/service";
+import { requestKeyboard } from "@/lib/requests/telegram-text";
 import { renderOrder, type BotHolder } from "@/lib/telegram/bot";
 
 export const MAX_ATTEMPTS = 8;
@@ -98,6 +100,20 @@ async function runJob(db: Db, kv: Kv, sender: Sender, job: Job, now: Date) {
     if (updated) await publishStatus(db, kv, updated);
     return;
   }
+  if (job.kind === "request.new") {
+    const r = job.refId ? await findRequestById(db, job.refId) : null;
+    if (!r || r.telegramMessageId) return;
+    const messageId = await sender.send(renderRequest(r), { keyboard: requestKeyboard(r.id) });
+    await db
+      .update(guestRequests)
+      .set({
+        telegramMessageId: messageId,
+        sentAt: now,
+        status: sql`case when ${guestRequests.status} = 'queued' then 'sent' else ${guestRequests.status} end`,
+      })
+      .where(eq(guestRequests.id, r.id));
+    return;
+  }
   log.warn({ kind: job.kind }, "outbox: unknown job kind, dropping");
 }
 
@@ -134,6 +150,12 @@ export async function processOutbox(deps: { db: Db; kv: Kv; sender: Sender; now?
           .where(and(eq(orders.id, job.refId), eq(orders.status, "queued")))
           .returning();
         if (failed) await publishStatus(deps.db, deps.kv, failed);
+      }
+      if (dead && job.kind === "request.new" && job.refId) {
+        await deps.db
+          .update(guestRequests)
+          .set({ status: "failed" })
+          .where(and(eq(guestRequests.id, job.refId), eq(guestRequests.status, "queued")));
       }
     }
   }

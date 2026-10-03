@@ -16,6 +16,8 @@ import {
 import type { MenuView, PromoView } from "@/lib/menu/view";
 import type { OrderStatusView } from "@/lib/orders/types";
 import { useOrderTracking } from "@/lib/orders/use-order-tracking";
+import { useLiveSoldOut } from "@/lib/menu/use-live-menu";
+import { useRequestUi } from "@/lib/store/requests-ui";
 import { useCart } from "@/lib/store/cart";
 import { useOrders } from "@/lib/store/orders";
 import { usePrefs, type ViewMode } from "@/lib/store/prefs";
@@ -26,12 +28,14 @@ import { CategoryNav } from "./category-nav";
 import { MenuContext, type MenuCtx } from "./menu-context";
 import { MenuList } from "./menu-list";
 import { PromoStrip } from "./promo-strip";
+import { ServiceBar } from "./service-bar";
 import { Toolbar } from "./toolbar";
 
 const loadDish = () => import("./dish-sheet");
 const loadCart = () => import("./cart-sheet");
 const loadFilters = () => import("./filter-sheet");
 const loadOrder = () => import("./order-sheet");
+const RequestSheet = dynamic(() => import("./request-sheet"), { ssr: false });
 const DishSheet = dynamic(loadDish, { ssr: false });
 const CartSheet = dynamic(loadCart, { ssr: false });
 const FilterSheet = dynamic(loadFilters, { ssr: false });
@@ -80,7 +84,9 @@ export function MenuApp({ menu, promos, initialView, isOpenNow }: Props) {
   const [filtersSession, setFiltersSession] = useState(0);
 
   const itemsById = useMemo(() => new Map(menu.items.map((i) => [i.id, i])), [menu.items]);
-  const soldOut = useMemo(() => new Set(menu.soldOut), [menu.soldOut]);
+  const liveSoldOut = useLiveSoldOut(menu.version, menu.soldOut);
+  const soldOut = useMemo(() => new Set(liveSoldOut), [liveSoldOut]);
+  const requestShown = useRequestUi((s) => s.shown !== null);
   const flagLabels = useMemo(
     () =>
       Object.fromEntries(ITEM_FLAGS.map((f) => [f, t(`flags.${f}`)])) as Record<ItemFlag, string>,
@@ -185,6 +191,7 @@ export function MenuApp({ menu, promos, initialView, isOpenNow }: Props) {
   return (
     <MenuContext.Provider value={ctx}>
       <PromoStrip promos={promos} />
+      <ServiceBar />
       <CategoryNav categories={menu.categories} flat={!result.grouped} onLeaveFlat={resetAll} />
       <Toolbar
         query={query}
@@ -223,6 +230,7 @@ export function MenuApp({ menu, promos, initialView, isOpenNow }: Props) {
         <CartSheet open={cartOpen} onOpenChange={setCartOpen} onOrdered={onOrdered} />
       ) : null}
       {orderMounted ? <OrderSheet open={orderOpen} onOpenChange={setOrderOpen} /> : null}
+      {requestShown ? <RequestSheet /> : null}
       {filtersSession ? (
         <FilterSheet
           key={filtersSession}

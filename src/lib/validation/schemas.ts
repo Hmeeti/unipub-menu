@@ -1,7 +1,9 @@
 import { z } from "zod";
 import { BOOKING_MAX_DAYS, MAX_ORDER_LINES, MAX_QTY, TABLE_CODE_RE } from "@/lib/domain/limits";
 import { VENUE_TZ, parseHm, zonedParts } from "@/lib/domain/schedule";
+import { KZ_PHONE_RE, formatKzPhone, normalizeKzPhone } from "@/lib/domain/phone";
 import { MAX_SPLIT_PEOPLE } from "@/lib/domain/split";
+import { PAYMENT_METHODS } from "@/lib/requests/types";
 
 export { BOOKING_MAX_DAYS, MAX_ORDER_LINES, MAX_QTY };
 
@@ -50,28 +52,8 @@ export const orderInputSchema = z.object({
 });
 export type OrderInput = z.infer<typeof orderInputSchema>;
 
-export const PAYMENT_METHODS = ["cash", "card", "qr"] as const;
-
-export const KZ_PHONE_RE = /^7\d{10}$/;
-export function normalizeKzPhone(raw: string): string | null {
-  let d = raw.replace(/\D/g, "");
-  if (d.length === 11 && d.startsWith("8")) d = `7${d.slice(1)}`;
-  if (d.length === 10) d = `7${d}`;
-  return KZ_PHONE_RE.test(d) ? d : null;
-}
-
-export function formatKzPhone(digits: string): string {
-  const d = digits.replace(/\D/g, "").replace(/^8/, "7").slice(0, 11);
-  const rest = d.startsWith("7") ? d.slice(1) : d;
-  const p = [rest.slice(0, 3), rest.slice(3, 6), rest.slice(6, 8), rest.slice(8, 10)];
-  let out = "+7";
-  if (p[0]) out += ` (${p[0]}`;
-  if (p[0] && p[0].length === 3) out += ")";
-  if (p[1]) out += ` ${p[1]}`;
-  if (p[2]) out += `-${p[2]}`;
-  if (p[3]) out += `-${p[3]}`;
-  return out;
-}
+export { PAYMENT_METHODS };
+export { KZ_PHONE_RE, formatKzPhone, normalizeKzPhone };
 
 export type BookingDateError = "booking_past" | "booking_too_far" | "booking_invalid";
 
@@ -136,7 +118,3 @@ export const requestInputSchema = z.discriminatedUnion("type", [
   }),
 ]);
 export type RequestInput = z.infer<typeof requestInputSchema>;
-
-export const reminderInputSchema = z.object({
-  publicId: z.string().regex(/^[A-Za-z0-9_-]{16,40}$/),
-});

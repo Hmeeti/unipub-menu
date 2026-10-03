@@ -35,7 +35,7 @@ export default async function MenuPage({ params }: PageProps<"/[locale]">) {
         initialView={view}
         isOpenNow={status.open}
       />
-      <KaraokeSection venue={menu.venue} locale={locale} />
+      <KaraokeSection venue={menu.venue} locale={locale} features={menu.features} />
       <RulesSection venue={menu.venue} locale={locale} />
       <Footer venue={menu.venue} locale={locale} />
     </>

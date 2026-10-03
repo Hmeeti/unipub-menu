@@ -21,17 +21,25 @@ export function newIdempotencyKey(): string {
   return crypto.randomUUID();
 }
 
-async function call(url: string, init: RequestInit): Promise<ClientResult> {
+export type TransportError = { ok: false; error: "network" | "server" };
+
+/** API responses are always `{ ok, ... }` JSON; anything else is reported as a server error. */
+export async function apiCall<T extends { ok: boolean }>(
+  url: string,
+  init: RequestInit,
+): Promise<T | TransportError> {
   let res: Response;
   try {
     res = await fetch(url, { credentials: "same-origin", cache: "no-store", ...init });
   } catch {
     return { ok: false, error: "network" };
   }
-  const body = (await res.json().catch(() => null)) as ClientResult | null;
+  const body = (await res.json().catch(() => null)) as T | null;
   if (!body || typeof body.ok !== "boolean") return { ok: false, error: "server" };
   return body;
 }
+
+const call = (url: string, init: RequestInit) => apiCall<ClientResult>(url, init);
 
 /** The same key must be reused when retrying the same cart: the server then replays instead of duplicating. */
 export function submitOrder(payload: OrderPayload, idempotencyKey: string): Promise<ClientResult> {

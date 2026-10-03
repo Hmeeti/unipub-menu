@@ -23,6 +23,7 @@ const CLIENT_NAMESPACES = [
   "cart",
   "split",
   "order",
+  "request",
   "karaoke",
   "promo",
   "common",

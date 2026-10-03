@@ -1,8 +1,9 @@
-import { ChevronDown, Mic } from "lucide-react";
+import { CalendarDays, ChevronDown, Mic, Music } from "lucide-react";
 import { getTranslations } from "next-intl/server";
-import type { NativeLocale, PublicVenue } from "@/lib/domain/types";
+import type { NativeLocale, PublicVenue, VenueFeatures } from "@/lib/domain/types";
 import { percentLabel } from "@/lib/domain/money";
 import { pick, pickList } from "@/lib/i18n/text";
+import { RequestButton } from "./request-button";
 
 export async function Splash({ serviceRateBp }: { serviceRateBp: number }) {
   const t = await getTranslations("splash");
@@ -32,13 +33,15 @@ export async function Splash({ serviceRateBp }: { serviceRateBp: number }) {
 export async function KaraokeSection({
   venue,
   locale,
+  features,
 }: {
   venue: PublicVenue;
   locale: NativeLocale;
+  features: VenueFeatures;
 }) {
   const t = await getTranslations("karaoke");
   const rules = pickList(venue.content.karaokeRules, locale);
-  if (!rules.length) return null;
+  if (!rules.length && !features.songs && !features.booking) return null;
   return (
     <section aria-labelledby="karaoke-title" className="mx-auto mt-4 w-full max-w-6xl px-4">
       <div className="border-line rounded-3xl border bg-[radial-gradient(circle_at_85%_0%,var(--glow-1),transparent_55%),var(--surface)] p-5">
@@ -46,14 +49,34 @@ export async function KaraokeSection({
           <Mic className="text-pink-text size-5" aria-hidden="true" />
           {t("title")}
         </h2>
-        <h3 className="text-gold mt-3 text-[13px] font-bold tracking-wide uppercase">
-          {t("rulesTitle")}
-        </h3>
-        <ol className="text-muted marker:text-gold-dim mt-2 list-decimal space-y-1.5 pl-5 text-[15px]">
-          {rules.map((r) => (
-            <li key={r}>{r}</li>
-          ))}
-        </ol>
+        {features.songs || features.booking ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {features.songs ? (
+              <RequestButton type="song" className="bg-accent text-on-accent">
+                <Music className="size-4" aria-hidden="true" />
+                {t("orderSong")}
+              </RequestButton>
+            ) : null}
+            {features.booking ? (
+              <RequestButton type="booking" className="border-line-strong border">
+                <CalendarDays className="size-4" aria-hidden="true" />
+                {t("book")}
+              </RequestButton>
+            ) : null}
+          </div>
+        ) : null}
+        {rules.length ? (
+          <>
+            <h3 className="text-gold mt-4 text-[13px] font-bold tracking-wide uppercase">
+              {t("rulesTitle")}
+            </h3>
+            <ol className="text-muted marker:text-gold-dim mt-2 list-decimal space-y-1.5 pl-5 text-[15px]">
+              {rules.map((r) => (
+                <li key={r}>{r}</li>
+              ))}
+            </ol>
+          </>
+        ) : null}
       </div>
     </section>
   );

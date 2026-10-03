@@ -19,6 +19,10 @@ import {
   parseCallback,
   unavailableKeyboard,
 } from "@/lib/orders/telegram-text";
+import { setSoldOut } from "@/lib/menu/repository";
+import { acceptRequest, renderRequest } from "@/lib/requests/service";
+import { acceptedLine, appendAccepted, parseRequestCallback } from "@/lib/requests/telegram-text";
+import { formatStopList, listSoldOut, parseStopCallback, stopKeyboard } from "./stoplist";
 
 export type TelegramCall = { method: string; payload: Record<string, unknown> };
 
@@ -78,6 +82,8 @@ export function renderOrder(o: OrderRow): string {
   );
 }
 
+const NO_RIGHTS = "Нет прав. Попросите управляющего добавить ваш Telegram ID в список официантов.";
+
 function isNotModified(err: unknown) {
   return err instanceof GrammyError && /message is not modified/i.test(err.description);
 }
@@ -121,17 +127,67 @@ export function createBot(opts: {
     ctx.reply(`Ваш Telegram ID: ${ctx.from?.id ?? "—"}\nID этого чата: ${ctx.chat.id}`),
   );
 
+  bot.command("stop", async (ctx) => {
+    if (!ctx.from) return;
+    const { db } = await opts.deps();
+    if (!(await findStaff(db, ctx.from.id))) return ctx.reply(NO_RIGHTS);
+    const list = await listSoldOut(db);
+    await ctx.reply(formatStopList(list), { reply_markup: stopKeyboard(list) });
+  });
+
   bot.on("callback_query:data", async (ctx) => {
-    const cb = parseCallback(ctx.callbackQuery.data);
-    if (!cb) return ctx.answerCallbackQuery();
+    const data = ctx.callbackQuery.data;
+    const cb = parseCallback(data);
+    const rcb = cb ? null : parseRequestCallback(data);
+    const scb = cb || rcb ? null : parseStopCallback(data);
+    if (!cb && !rcb && !scb) return ctx.answerCallbackQuery();
     const { db, kv } = await opts.deps();
     const staff = await findStaff(db, ctx.from.id);
-    if (!staff) {
+    if (!staff) return ctx.answerCallbackQuery({ text: NO_RIGHTS, show_alert: true });
+
+    const ignoreNotModified = (err: unknown) => {
+      if (!isNotModified(err)) throw err;
+    };
+
+    if (rcb) {
+      const now = new Date();
+      const r = await acceptRequest(
+        db,
+        rcb.requestId,
+        { name: staff.name, telegramUserId: ctx.from.id },
+        now,
+      );
+      if (!r.request) return ctx.answerCallbackQuery({ text: "Заявка не найдена" });
+      if (!r.changed)
+        return ctx.answerCallbackQuery({ text: `Уже принято: ${r.request.acceptedBy ?? "—"}` });
+      const line = acceptedLine(staff.name, now, VENUE_TZ);
+      // Bookings keep the guest contact only in the Telegram message, so the edit starts from it.
+      const current = ctx.callbackQuery.message?.text;
+      const text =
+        r.request.type === "booking"
+          ? current
+            ? appendAccepted(current, line)
+            : null
+          : appendAccepted(renderRequest(r.request), line);
+      if (text) await ctx.editMessageText(text).catch(ignoreNotModified);
+      else await ctx.editMessageReplyMarkup({ reply_markup: undefined }).catch(ignoreNotModified);
+      return ctx.answerCallbackQuery({ text: "Принято" });
+    }
+
+    if (scb) {
+      if (scb.kind === "restore") {
+        await setSoldOut(db, [scb.itemId], false);
+        hooks.onMenuChanged?.();
+      }
+      const list = await listSoldOut(db);
+      await ctx
+        .editMessageText(formatStopList(list), { reply_markup: stopKeyboard(list) })
+        .catch(ignoreNotModified);
       return ctx.answerCallbackQuery({
-        text: "Нет прав. Попросите управляющего добавить ваш Telegram ID в список официантов.",
-        show_alert: true,
+        text: scb.kind === "restore" ? "Вернули в продажу" : "Обновлено",
       });
     }
+    if (!cb) return ctx.answerCallbackQuery();
     const edit = async (o: OrderRow, keyboard = mainKeyboard(o.id, o.status === "accepted")) => {
       try {
         await ctx.editMessageText(renderOrder(o), {

@@ -57,6 +57,8 @@ export type MenuView = {
   features: PublicMenu["features"];
   popularQueries: string[];
   reviewUrl: string | null;
+  rooms: { id: string; name: string; capacity: number | null }[];
+  phone: { tel: string; display: string } | null;
 };
 
 export function toMenuView(menu: PublicMenu, locale: NativeLocale, now: Date): MenuView {
@@ -104,6 +106,13 @@ export function toMenuView(menu: PublicMenu, locale: NativeLocale, now: Date): M
     features: menu.features,
     popularQueries: pickList(menu.venue.content.popularQueries, locale),
     reviewUrl: httpsOnly(menu.venue.contacts.review2gis) ?? httpsOnly(menu.venue.contacts.map2gis),
+    rooms: menu.rooms.map((r) => ({ id: r.id, name: pick(r.name, locale), capacity: r.capacity })),
+    phone: menu.venue.contacts.phone
+      ? {
+          tel: menu.venue.contacts.phone,
+          display: menu.venue.contacts.phoneDisplay || menu.venue.contacts.phone,
+        }
+      : null,
   };
 }
 

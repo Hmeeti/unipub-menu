@@ -1,6 +1,6 @@
 "use client";
 
-import { BellRing, Check, Star } from "lucide-react";
+import { BellRing, Check, ReceiptText, Star } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useT } from "@/components/providers/i18n-provider";
 import { Sheet } from "@/components/ui/sheet";
@@ -9,6 +9,7 @@ import { formatPrice } from "@/lib/domain/money";
 import { remindOrder } from "@/lib/orders/client";
 import type { OrderStatusView } from "@/lib/orders/types";
 import { useOrders } from "@/lib/store/orders";
+import { useRequestUi } from "@/lib/store/requests-ui";
 import { cn } from "@/lib/utils";
 import { useMenu } from "./menu-context";
 
@@ -127,6 +128,7 @@ export default function OrderSheet({
   const t = useT();
   const { menu } = useMenu();
   const order = useOrders((s) => s.last);
+  const showRequest = useRequestUi((s) => s.show);
   const close = () => onOpenChange(false);
 
   const footer = (
@@ -137,6 +139,17 @@ export default function OrderSheet({
         className="bg-accent text-on-accent min-h-14 w-full rounded-2xl px-4 text-base font-bold active:scale-[0.98]"
       >
         {t("order.more")}
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          close();
+          showRequest("bill");
+        }}
+        className="border-line-strong inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border px-4 text-base font-bold active:scale-[0.98]"
+      >
+        <ReceiptText className="size-5" aria-hidden="true" />
+        {t("order.bill")}
       </button>
       {menu.reviewUrl ? (
         <a
