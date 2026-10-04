@@ -19,9 +19,9 @@ window.UNIPUB_DATA = {
     "map2gis": "https://2gis.kz/taraz/firm/70000001091786886",
     "mapYandex": "https://yandex.kz/maps/org/164409970147/",
     "hours": {
-      "ru": "Ежедневно 12:00–02:00",
-      "kz": "Күн сайын 12:00–02:00",
-      "en": "Daily 12:00–02:00"
+      "ru": "Ежедневно 12:00–02:00, пт–сб до 03:00",
+      "kz": "Күн сайын 12:00–02:00, жм–сб 03:00-ге дейін",
+      "en": "Daily 12:00–02:00, Fri–Sat until 03:00"
     },
     "rating": "4.9",
     "reviews": "324"

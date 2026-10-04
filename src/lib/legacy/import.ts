@@ -132,10 +132,23 @@ function parseDailyHours(hours: LegacyText): { hours: WeeklyHours; parsed: boole
   const m = ru.match(/(\d{1,2}:\d{2})\s*[–-]\s*(\d{1,2}:\d{2})/);
   if (!m) return { hours: Array.from({ length: 7 }, () => ({ open: "12:00", close: "02:00" })), parsed: false };
   const pad = (s: string) => s.padStart(5, "0");
-  return {
-    hours: Array.from({ length: 7 }, () => ({ open: pad(m[1] as string), close: pad(m[2] as string) })),
-    parsed: true,
-  };
+  const week: WeeklyHours = Array.from({ length: 7 }, () => ({
+    open: pad(m[1] as string),
+    close: pad(m[2] as string),
+  }));
+  // "…, пт–сб до 03:00": a later closing time for a range of days (index 0 = Sunday)
+  const late = ru.match(/(пн|вт|ср|чт|пт|сб|вс)\s*[–-]\s*(пн|вт|ср|чт|пт|сб|вс)\s+до\s+(\d{1,2}:\d{2})/i);
+  if (late) {
+    const days = ["вс", "пн", "вт", "ср", "чт", "пт", "сб"];
+    const from = days.indexOf((late[1] as string).toLowerCase());
+    const to = days.indexOf((late[2] as string).toLowerCase());
+    for (let d = from; ; d = (d + 1) % 7) {
+      const day = week[d];
+      if (day) week[d] = { ...day, close: pad(late[3] as string) };
+      if (d === to) break;
+    }
+  }
+  return { hours: week, parsed: true };
 }
 
 function legacyImages(it: LegacyItem): ImageAsset[] {

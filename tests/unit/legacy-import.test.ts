@@ -64,6 +64,9 @@ describe("legacy import", () => {
   it("converts service rate and hours", () => {
     expect(seed.venue.serviceRateBp).toBe(1500);
     expect(seed.venue.hours[0]).toEqual({ open: "12:00", close: "02:00" });
+    expect(seed.venue.hours[4]).toEqual({ open: "12:00", close: "02:00" });
+    expect(seed.venue.hours[5]).toEqual({ open: "12:00", close: "03:00" }); // Friday
+    expect(seed.venue.hours[6]).toEqual({ open: "12:00", close: "03:00" }); // Saturday
   });
 
   it("localizes measures", () => {

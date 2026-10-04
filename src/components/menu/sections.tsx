@@ -125,10 +125,18 @@ function hoursLine(
   }
   const fmt = new Intl.DateTimeFormat(locale === "kk" ? "kk-KZ" : locale, { weekday: "short" });
   // 2023-01-01 is a Sunday → index 0 matches WeeklyHours.
-  return days.map((d, i) => {
-    const name = fmt.format(new Date(Date.UTC(2023, 0, 1 + i, 12)));
-    return `${name}: ${d ? `${d.open}–${d.close}` : "—"}`;
-  });
+  const name = (i: number) => fmt.format(new Date(Date.UTC(2023, 0, 1 + i, 12)));
+  const range = (i: number) => (days[i] ? `${days[i]!.open}–${days[i]!.close}` : "—");
+  // Consecutive days with the same hours share a line: "вс–чт: 12:00–02:00".
+  const groups: { from: number; to: number }[] = [];
+  for (let i = 0; i < 7; i++) {
+    const last = groups[groups.length - 1];
+    if (last && range(last.to) === range(i)) last.to = i;
+    else groups.push({ from: i, to: i });
+  }
+  return groups.map(
+    ({ from, to }) => `${from === to ? name(from) : `${name(from)}–${name(to)}`}: ${range(from)}`,
+  );
 }
 
 export async function Footer({ venue, locale }: { venue: PublicVenue; locale: NativeLocale }) {
