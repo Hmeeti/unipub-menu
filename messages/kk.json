@@ -6,6 +6,7 @@
   },
   "header": {
     "openUntil": "{time} дейін ашық",
+    "lateClose": "{days} {time} дейін",
     "opensAt": "{time} ашылады",
     "opensOn": "{day} {time} ашылады",
     "closed": "Қазір жабық",

@@ -1,7 +1,7 @@
 import { Phone, Star } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { InstagramIcon, MapPinIcon, WhatsAppIcon } from "@/components/ui/brand-icons";
-import type { NativeLocale, PublicVenue } from "@/lib/domain/types";
+import type { NativeLocale, PublicVenue, WeeklyHours } from "@/lib/domain/types";
 import type { OpenStatus } from "@/lib/domain/schedule";
 import { pick } from "@/lib/i18n/text";
 import { sitePath } from "@/lib/site";
@@ -12,6 +12,30 @@ import { ThemeToggle } from "./theme-toggle";
 const LOCALE_LABELS: Record<NativeLocale, string> = { ru: "РУС", kk: "ҚАЗ", en: "ENG" };
 
 type Props = { venue: PublicVenue; locale: NativeLocale; status: OpenStatus; now: Date };
+
+/** "пт–сб до 03:00" for consecutive days that close later than the usual time. */
+export function lateCloseNote(
+  hours: WeeklyHours,
+  locale: NativeLocale,
+  template: string,
+): string | null {
+  const closes = hours.map((d) => d?.close ?? null);
+  const counts = new Map<string, number>();
+  for (const c of closes) if (c) counts.set(c, (counts.get(c) ?? 0) + 1);
+  const usual = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+  const late = closes.map((c, i) => (c && c !== usual ? i : -1)).filter((i) => i >= 0);
+  if (!usual || late.length === 0) return null;
+  const time = closes[late[0]!]!;
+  const contiguous = late.every((d, k) => k === 0 || d === late[k - 1]! + 1);
+  if (!contiguous || late.some((d) => closes[d] !== time)) return null;
+  const fmt = new Intl.DateTimeFormat(locale === "kk" ? "kk-KZ" : locale, { weekday: "short" });
+  // 2023-01-01 is a Sunday → index 0 matches WeeklyHours.
+  const name = (i: number) => fmt.format(new Date(Date.UTC(2023, 0, 1 + i, 12)));
+  const first = late[0]!;
+  const last = late[late.length - 1]!;
+  const days = first === last ? name(first) : `${name(first)}–${name(last)}`;
+  return template.replace("{days}", days).replace("{time}", time);
+}
 
 export async function Header({ venue, locale, status, now }: Props) {
   const t = await getTranslations("header");
@@ -81,6 +105,7 @@ export async function Header({ venue, locale, status, now }: Props) {
             hours={venue.hours}
             tz={venue.timezone}
             text={statusText}
+            note={lateCloseNote(venue.hours, locale, t.raw("lateClose") as string)}
           />
           {c.rating ? (
             <a

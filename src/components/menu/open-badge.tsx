@@ -43,12 +43,15 @@ export function OpenBadge({
   hours,
   tz,
   text,
+  note,
 }: {
   initial: OpenStatus;
   initialAt: number;
   hours: WeeklyHours;
   tz: string;
   text: OpenBadgeText;
+  /** Static schedule hint, e.g. "пт–сб до 03:00" */
+  note?: string | null;
 }) {
   const minute = useMinute(true);
   const now = new Date(minute ?? initialAt);
@@ -60,6 +63,7 @@ export function OpenBadge({
         aria-hidden="true"
       />
       {describe(status, text, now, tz)}
+      {note ? <span className="text-gold">· {note}</span> : null}
     </span>
   );
 }

@@ -6,6 +6,7 @@
   },
   "header": {
     "openUntil": "Open until {time}",
+    "lateClose": "{days} until {time}",
     "opensAt": "Opens at {time}",
     "opensOn": "Opens {day} at {time}",
     "closed": "Closed now",

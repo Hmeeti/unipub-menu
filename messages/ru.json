@@ -6,6 +6,7 @@
   },
   "header": {
     "openUntil": "Открыто до {time}",
+    "lateClose": "{days} до {time}",
     "opensAt": "Откроется в {time}",
     "opensOn": "Откроется {day} в {time}",
     "closed": "Сейчас закрыто",
